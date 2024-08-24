@@ -26,7 +26,7 @@ used to run a variety of Linux processes on a remote machine:
 - long-lived command  - e.g. _bash -c 'for ((i=0; i<100;++i)); do echo index:$i; sleep 1; done'_
 
 Because each job process is isolated for security purposes and limited resources consumption - 
-such service can be considered as alternative for Docker containers.
+such service can be considered as lightweight alternative of Docker containers.
 
 ## Details
 The project should be composed of three components:
@@ -37,13 +37,15 @@ The project should be composed of three components:
   availability should be limited by client permission. Each job should be assigned to it own CPU,
   Memory and DiskIO groups to limit process resource consumptions.
 
+
 * **API** - [gRPC](https://grpc.io/) API server side application that enables mTLS client authentication
   and verify client certificate. API should handle and report clear errors and not crash under non-critical
   conditions.
 
-  _**Note:**_ set up strong set of cipher suites for TLS and good crypto setup for certificates.
+  Set up strong set of cipher suites for TLS and good crypto setup for certificates.
 
-  _**Warning:**_ not any other authentication protocols should be used on top of mTLS.
+  No any other authentication protocols should be used on top of mTLS.
+
 
 * **Client** - the client should be deigned as command line interface (cli) and connect to the API
   and provide same set of operation (start/stop/query status/stream output of the job)
@@ -52,7 +54,7 @@ _**Note:** the team proposed Golang language as preferable_
 
 #### Assumptions
 * no user hierarchy and all user are isolated _(all user equal and not able to start/stop/query command from other users)_
-* due to limit of time and scope we should support cgroups v1 and cgroups should be setup on the machine
+* due to limit of time and scope we should support cgroups v2 and cgroups should be setup on the machine
 * machine has enough memory to run all the jobs and store jobs' output in memory 
 * service run using preconfigures IP_ADDRESS:PORT 
 * no any data should be persisted (include configuration, mTLS certificates)
@@ -165,16 +167,43 @@ Calling `Stream` for not-existing or not-started job returns empty `OutputReader
 `Stop` will do nothing if the process has already completed or been killed.
 
 ### API 
+The API is nothing more than just a wrapper around Library, but main API responsibility provide mTLS Authorization and using Library
+functionality via [gRPC](https://grpc.io/)
+
+#### Following functions considered to be used for API Server.
+
+* Start New Job
+  * verify user credentials via mTLS Authorization
+  * create new instance of the `Job` and assign new UUID 
+  * store `job` in sync.Map using UUID as key
+  * start command execution
+  * return UUID to the client
+* Query Job
+  * return current status of the `Job`
+* Streaming latest Job output
+  * lookup `Job` by provided UUID
+  * request instance of `OutputReader` using library
+  * send steam output to the client/cli
+* Stop Job
+  * lookup `Job` by provided UUID
+  * call `Stop` function if `Job` was found, otherwise return error
+  
+  > **Not any job and it output removed from then server**. So, depend on the load and size of total output it would come to OOM situation sooner or later.
+  > Probably we need to consider some API or process to clean job based on size, date of creations, frequency of usage or etc.
+  
 
 #### Security
 
-The client and API communicate via mTLS using TLS 1.3 as the minimum version. The following cipher suites are supported:
+The client and API communicate via mTLS using [TLS 1.3 ](https://datatracker.ietf.org/doc/html/rfc8446) as the minimum version. The following cipher suites are supported:
 
 * TLS_AES_256_GCM_SHA384
 * TLS_CHACHA20_POLY1305_SHA256
 * TLS_AES_128_GCM_SHA256
 
-> Note: only following 3 cipher suites enabled openssl by default: https://wiki.openssl.org/index.php/TLS1.3
+> Note: only 3 cipher suites enabled openssl by default: https://wiki.openssl.org/index.php/TLS1.3, and following 2 
+> below also can be used, but need to explicitly enabled: 
+>* TLS_AES_128_CCM_8_SHA256
+>* TLS_AES_128_CCM_SHA256
 
 > Since there are no requirements for older versions of TLS to be supported, TLS v1.3 will be made a minimum.
 
@@ -182,45 +211,136 @@ The client and API communicate via mTLS using TLS 1.3 as the minimum version. Th
 All verification should be done on API level and API treats the client's common name (CN) in the certificate as the user's identity.
 Client not able interact with a job not created by them in any way (Query, Stream, Status, Stop another user's job is not allowed).
 
-API not cache any user authorization data and this data should be provided for every API call.
+API not cache any user authorization data and such data should be provided for every API call.
 
 #### Proposed Protobuf
 Following [protobuf](https://protobuf.dev/programming-guides/proto3/) proposed for the client/server:
 
 ```protobuf
-syntax = "proto3";
+  syntax = "proto3";
 
-package jobworker;
-
-service JobWorker {
-  rpc Start(JobConfig) returns (Job) {}
-  rpc Query(Job) returns (JobStatus) {}
-  rpc Stream(Job) returns (stream Output) {}
-  rpc Stop(Job) returns (JobStatus) {}
-}
-
-message Job {
-  string uuid = 1;
-}
-
-message JobConfig {
-  double cpu = 1;
-  int64 membytes = 2;
-  int64 iobytespersecond = 3;
-  string command = 4;
-  repeated string args = 5;
-}
-
-message JobStatus {
-  string status = 1;
-  int32 exitcode = 2;
-  string exitreason = 3;
-}
-
-message Output {
-  bytes content = 1;
-}
+  package jobworker;
+  
+  // option go_package
+  
+  service JobWorker {
+    rpc Start(JobConfig) returns (Job) {}
+    rpc Status(Job) returns (JobStatus) {}
+    rpc Stream(Job) returns (stream Output) {}
+    rpc Stop(Job) returns (JobStatus) {}
+  }
+  
+  message Job {
+    string uuid = 1;
+  }
+  
+  message JobConfig {
+    double cpu = 1;
+    int64 membytes = 2;
+    int64 iobytespersecond = 3;
+    string command = 4;
+    repeated string args = 5;
+  }
+  
+  message JobStatus {
+    string status = 1;
+    int32 exitcode = 2;
+    string exitreason = 3;
+  }
+  
+  message Output {
+    bytes content = 1;
+  }
 ```
 
 ### Client/CLI 
 
+User interact with API via [CLI (A command-line interface)](https://en.wikipedia.org/wiki/Command-line_interface). 
+Here is example below how user interact via CLI and expected output
+
+> _Following command line package: https://github.com/urfave/cli considered as option for CLI implementation._
+
+#### Starting new job
+
+```text
+    jw start --ca-cert <PATH_TO_CA_CERT> \
+    --clent-cert <PATH_TO_CLIENT_CERT> \
+    --client-key <PATH_TO_CLIENT_KEY> \
+    --cpu 0.5
+    --memory 500000
+    --io 1000000
+    --c $(which date)
+```
+
+expected output
+
+```text
+Jod:<UUID> stared. 
+```
+
+> Note: cpu, memory and io settings are not guarantee that system would allocate exactly same CPU time and memory.
+> Based on system load process can have more or less of these settings.
+
+#### Query job status
+
+```text
+  jw status --ca-cert <PATH_TO_CA_CERT> \
+    --clent-cert <PATH_TO_CLIENT_CERT> \
+    --client-key <PATH_TO_CLIENT_KEY> \
+    --id <UUID>
+```
+
+expected output if started
+```text
+Jod:<UUID> has status: Started. ExitCode:-1, ExitReason:
+```
+
+expected output if completed
+```text
+Jod:<UUID> has status: Completed. ExitCode:0, ExitReason:
+```
+
+expected output if failed to run
+```text
+Jod:<UUID> has status: Stopped. ExitCode:-1, ExitReason: <ERROR DETAILS>
+```
+
+#### Streaming job output
+```text
+  jw stream --ca-cert <PATH_TO_CA_CERT> \
+    --clent-cert <PATH_TO_CLIENT_CERT> \
+    --client-key <PATH_TO_CLIENT_KEY> \
+    --id <UUID>
+```
+
+expected output if completed
+```text
+Sat Aug 24 12:43:23 PDT 2024
+```
+
+The command will continue to print the output until the job completes or stopped.
+
+In the case that the job has completed, the command will print the output and then exit.
+
+#### Stopping a job
+
+```text
+  jw stop --ca-cert <PATH_TO_CA_CERT> \
+    --clent-cert <PATH_TO_CLIENT_CERT> \
+    --client-key <PATH_TO_CLIENT_KEY> \
+    --id <UUID>
+```
+
+expected output if completed
+```text
+Jod:<UUID> has status: Stopped. ExitCode:0, ExitReason:
+```
+
+### Test Plan
+Create a few end-to-end tests to verify some behaviors like:
+
+#### Positive use cases  
+1. Use Case #1: Starting simple job, check job status and let the job complete.
+2. Use Case #2: Starting simple job, Stop job, check job status is Stopped.
+3. Use Case #3: Start long-running job, check status, stream job output, waiting for completions, check job status.
+4. Use Case #4: Start Job for with User1, check job status, try to request status/stop job from User2. Expected behavior User2 should receive error. Stop job with User1 credentials.
