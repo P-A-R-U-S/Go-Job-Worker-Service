@@ -89,7 +89,7 @@ The user is expected to provide CPU, memory, and IO limits.
   }
   ```
   
-* **type JobStatus** - holds job's status.
+* **type JobStatus** - holds information about current state of the job.
      ```go
     type JobStatus struct {
       State     string
@@ -97,10 +97,12 @@ The user is expected to provide CPU, memory, and IO limits.
       ExitReason string
     }
     ```
-  - _State_ - e.g. _Started, Executing, Stopped, Completed_.
-  - _ExitCode_ will be -1 if not in a completed state. Otherwise, it will be the process's exit code
-      if process invoked exit. If the process was killed by a signal, then the exit code will be -1.
-  - _ExitReason_ is populated with the error message returned by [exec.Cmd.Run](https://pkg.go.dev/os/exec#Cmd.Run) if the process failed to run.
+  - _**State**_ latest state of the job (_Started, Executing, Stopped, Completed_).
+  
+  - _**ExitCode**_ - exit code (if process invoked exit), otherwise would be -1 if not in a completed state.
+  
+  - _**ExitReason**_ - error message returned by [exec.Cmd.Run](https://pkg.go.dev/os/exec#Cmd.Run) (if the process failed to run).
+
 
 * **type JobConfig** - holds configuration for creating a new job.
 
@@ -113,21 +115,54 @@ The user is expected to provide CPU, memory, and IO limits.
     Arguments        []string
   }
   ```
-  - _CPU_ is a decimal representing an approximate number of CPU cores to limit the job to. 
+  - _**CPU**_ - representing an approximate number of CPU cores to limit the job. 
   For example, 0.5 would translate to half a CPU core. This is configured by setting [cpu.max](https://docs.kernel.org/admin-guide/cgroup-v2.html)=500000 of 1000000 total. 
-  in the cgroup for the process. 
   
-  - _MemBytes_ is the maximum amount of memory to be used by the job. 
+  - _**MemBytes**_ - maximum amount of memory to be used by the job. 
   This is configured by setting [memory.max](https://docs.kernel.org/admin-guide/cgroup-v2.html) in the cgroup for the process using the same number provided. 
   
-  - _IOBytesPerSecond_ is the maximum read and write on the device mounted / is mounted on. 
+  - _**IOBytesPerSecond**_ is the maximum read and write on the device mounted / is mounted on. 
   This is configured by setting [io.max](https://docs.kernel.org/admin-guide/cgroup-v2.html) in the cgroup for the process. 
   For example, a IOBytesPerSecond of 1000000000 would be similar to 259:1 rbps=1000000000 wbps=1000000000 riops=max wiops=max in the cgroup's io.max file. 
 
-  - _Command_ is the command to execute. For example, _/bin/bash_. 
+  - _**Command**_ is the command to execute. For example, _/bin/bash_. 
   
-  - _Arguments_ are the arguments to pass to the command. 
+  - _**Arguments**_ are the arguments to pass to the command. 
   For example, []string{"-c", "echo hello"} would be provided to command and ultimately run similar to /bin/bash -c "echo hello".
+
+
+* **func New(config JobConfig) \*Job** - create new Job instance, based on provided job configuration.
+
+
+* **func (\*Job) Start() error** - start job executions and return [error](https://pkg.go.dev/errors) if job failed to start or required fields contains no value.
+
+  Starting new job tart takes following steps:
+
+  - create new [cgroup](https://docs.kernel.org/admin-guide/cgroup-v2.html) for the job - e.g `/sys/fs/cgroup/<UUID>`
+  - create subtree to control resources - e.g. `+cpu +memory +io` into file `/sys/fs/cgroup/<UUID>/cgroup.subtree_control`
+  - set value for CPU, Memory and IO limits based on job configuration 
+    - **CPU** - set by writing QUOTA/PERIOD into `/sys/fs/cgroup/<UUID>/tasks/cpu.max`
+    - **Memory** - set by writing the provided IOBytesPerSecond to `/sys/fs/cgroup/<uuid>/tasks/memory.max`
+    - **IO** - is set by writing IOBytesPerSecond into `<MAJOR NUMBER OF PHYSICAL DEVICE>:<MINOR NUMBER OF PHYSICAL DEVICE> rbps=<IOBytesPerSecond> wbps=<IOBytesPerSecond> riops=max wiops=max` to `/sys/fs/cgroup/<UUID>/tasks/io.max` <br/><br/>_Note_:  `<MAJOR NUMBER OF PHYSICAL DEVICE>` and `<MINOR NUMBER OF PHYSICAL DEVICE>` shoudl be dynamically detected and provided during runtime.
+  - configures a new [exec.Cmd](https://pkg.go.dev/os/exec#Cmd)
+    - sets clone flags for creating new mount, pid, and network namespaces 
+    - sets unshare flags for mount so that new mounts are not reflected in host mount namespace 
+    - sets [UseCgroupFD and CgroupFD](https://pkg.go.dev/syscall#SysProcAttr) to the cgroup's file descriptor such as /sys/fs/cgroup/<UUID>/tasks
+  - runs the configured `exec.Cmd` in a new goroutine
+    - does not wait for the command to complete 
+    - the goroutine will stop when the process completes or is killed
+
+
+* **func (\*Job) Status() JobStatus** - returns the current status of the job (see [JobStatus](#type-JobStatus))
+
+
+* **func (\*Job) Stream() OutputReader** - returns an `OutputReader` (type that implements [io.Reader](https://pkg.go.dev/io#Reader)). 
+`OutputReader` return entire output from when job started to the current output. `Stream` can call when job starting, executing or completed.
+Calling `Stream` for not-existing or not-started job returns empty `OutputReader`.
+
+
+* **func (\*Job) Stop() error** - attempt to gracefully shutdown the process.
+`Stop` will do nothing if the process has already completed or been killed.
 
 ### Client/CLI 
 
