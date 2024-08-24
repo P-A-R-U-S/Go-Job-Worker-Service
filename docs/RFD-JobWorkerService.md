@@ -25,8 +25,8 @@ used to run a variety of Linux processes on a remote machine:
 - short-lived command - e.g. _$(which date)_
 - long-lived command  - e.g. _bash -c 'for ((i=0; i<100;++i)); do echo index:$i; sleep 1; done'_
 
-Also, each job process should be isolated based on security setting and controls resource consumptions,
-prevent unauthorized access. 
+Because each job process is isolated for security purposes and limited resources consumption - 
+such service can be considered as alternative for Docker containers.
 
 ## Details
 The project should be composed of three components:
@@ -51,11 +51,86 @@ The project should be composed of three components:
 _**Note:** the team proposed Golang language as preferable_
 
 #### Assumptions
-* no user hierarchy and all user are isolated (all user equal and not able to start/stop/query command from other users)
+* no user hierarchy and all user are isolated _(all user equal and not able to start/stop/query command from other users)_
 * due to limit of time and scope we should support cgroups v1 and cgroups should be setup on the machine
-* machine has enough memory to run all the job and store job's output in memory 
+* machine has enough memory to run all the jobs and store jobs' output in memory 
+* service run using preconfigures IP_ADDRESS:PORT 
+* no any data should be persisted (include configuration, mTLS certificates)
 
 #### Not supported (Out of scope)
-* high availability (single instance run on single Linux 64-bit machine)
+* high availability _(single instance run on single Linux 64-bit machine)_
+* no cgroup configuration such as PID limits, memory.
+
+### Library
+Independent public library (package) support running arbitrary Linux 64-bit process in isolation 
+with resource limits. Package should not have any dependency on external packages and know nothing 
+about API and Client/CLI. 
+
+All jobs should be safe for concurrent use and every process should be isolated and run in separate 
+goroutine. Library can use concurrency primitives (mutex, channels, wait groups) to handle concurrent 
+changes to job's state such as stop being invoked multiple times concurrently and write jobs output. 
+
+Every job has the following attributes: 
+* **_PID namespace_** - to prevent a process from killing other processes running on the machine not created by the job
+* **_Network namespace_** - to prevent all receiving or sending network traffic both on the local network and internet
+* **_Mount namespace_**  - to prevents modifying the host's mounts
+
+#### Resource limitation
+The process's resources are limited by configuring cgroups. 
+The user is expected to provide CPU, memory, and IO limits.
+
+#### Following types and functions considered to be used for library package.
+
+* **type Job** - holds internal information about job.
+  ```go
+  type Job struct {
+    UUID uuid.UUID
+    Status *JobStatus
+  }
+  ```
+  
+* **type JobStatus** - holds job's status.
+     ```go
+    type JobStatus struct {
+      State     string
+      ExitCode  int
+      ExitReason string
+    }
+    ```
+  - _State_ - e.g. _Started, Executing, Stopped, Completed_.
+  - _ExitCode_ will be -1 if not in a completed state. Otherwise, it will be the process's exit code
+      if process invoked exit. If the process was killed by a signal, then the exit code will be -1.
+  - _ExitReason_ is populated with the error message returned by [exec.Cmd.Run](https://pkg.go.dev/os/exec#Cmd.Run) if the process failed to run.
+
+* **type JobConfig** - holds configuration for creating a new job.
+
+  ```go
+  type JobConfig struct {
+    CPU              float64
+    MemBytes         int64
+    IOBytesPerSecond int64
+    Command          string
+    Arguments        []string
+  }
+  ```
+  - _CPU_ is a decimal representing an approximate number of CPU cores to limit the job to. 
+  For example, 0.5 would translate to half a CPU core. This is configured by setting [cpu.max](https://docs.kernel.org/admin-guide/cgroup-v2.html)=500000 of 1000000 total. 
+  in the cgroup for the process. 
+  
+  - _MemBytes_ is the maximum amount of memory to be used by the job. 
+  This is configured by setting [memory.max](https://docs.kernel.org/admin-guide/cgroup-v2.html) in the cgroup for the process using the same number provided. 
+  
+  - _IOBytesPerSecond_ is the maximum read and write on the device mounted / is mounted on. 
+  This is configured by setting [io.max](https://docs.kernel.org/admin-guide/cgroup-v2.html) in the cgroup for the process. 
+  For example, a IOBytesPerSecond of 1000000000 would be similar to 259:1 rbps=1000000000 wbps=1000000000 riops=max wiops=max in the cgroup's io.max file. 
+
+  - _Command_ is the command to execute. For example, _/bin/bash_. 
+  
+  - _Arguments_ are the arguments to pass to the command. 
+  For example, []string{"-c", "echo hello"} would be provided to command and ultimately run similar to /bin/bash -c "echo hello".
 
 ### Client/CLI 
+
+### 
+
+### Test Plan
