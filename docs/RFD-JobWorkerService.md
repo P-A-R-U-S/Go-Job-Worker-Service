@@ -344,3 +344,9 @@ Create a few end-to-end tests to verify some behaviors like:
 2. Use Case #2: Starting simple job, Stop job, check job status is Stopped.
 3. Use Case #3: Start long-running job, check status, stream job output, waiting for completions, check job status.
 4. Use Case #4: Start Job for with User1, check job status, try to request status/stop job from User2. Expected behavior User2 should receive error. Stop job with User1 credentials.
+5. Use Case #5: Start Job with limits for cpu - e.g. `sha1sum /dev/random` and to verify cpu.limit run second job `ps -p $(pgrep sha1sum) -o %cpu)` to verify CPU usage
+6. Use Case #5: Start Job with limits for IO - e.g. `dd if=/dev/zero of=/tmp/test bs=512M count=1` to verify io.max ([dd](https://en.wikipedia.org/wiki/Dd_(Unix)) outputs rough approximations of read and write speeds)
+
+#### Negative use cases 
+1. Use Case #1: Try to `Stop`, `Status`, `Stream` non-exiting job.
+2. Use Case #2: Try to `Start` jon with incorrect/broken certificate
