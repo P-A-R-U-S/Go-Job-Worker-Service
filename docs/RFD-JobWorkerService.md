@@ -97,11 +97,11 @@ The user is expected to provide CPU, memory, and IO limits.
       ExitReason string
     }
     ```
-  - _**State**_ latest state of the job (_Started, Executing, Stopped, Completed_).
+  - _`State`_ latest state of the job (_Started, Executing, Stopped, Completed_).
   
-  - _**ExitCode**_ - exit code (if process invoked exit), otherwise would be -1 if not in a completed state.
+  - _`ExitCode`_ - exit code (if process invoked exit), otherwise would be -1 if not in a completed state.
   
-  - _**ExitReason**_ - error message returned by [exec.Cmd.Run](https://pkg.go.dev/os/exec#Cmd.Run) (if the process failed to run).
+  - _`ExitReason`_ - error message returned by [exec.Cmd.Run](https://pkg.go.dev/os/exec#Cmd.Run) (if the process failed to run).
 
 
 * **type JobConfig** - holds configuration for creating a new job.
@@ -115,19 +115,19 @@ The user is expected to provide CPU, memory, and IO limits.
     Arguments        []string
   }
   ```
-  - _**CPU**_ - representing an approximate number of CPU cores to limit the job. 
+  - _`CPU`_ - representing an approximate number of CPU cores to limit the job. 
   For example, 0.5 would translate to half a CPU core. This is configured by setting [cpu.max](https://docs.kernel.org/admin-guide/cgroup-v2.html)=500000 of 1000000 total. 
   
-  - _**MemBytes**_ - maximum amount of memory to be used by the job. 
+  - _`MemBytes`_ - maximum amount of memory to be used by the job. 
   This is configured by setting [memory.max](https://docs.kernel.org/admin-guide/cgroup-v2.html) in the cgroup for the process using the same number provided. 
   
-  - _**IOBytesPerSecond**_ is the maximum read and write on the device mounted / is mounted on. 
+  - _`IOBytesPerSecond`_ is the maximum read and write on the device mounted / is mounted on. 
   This is configured by setting [io.max](https://docs.kernel.org/admin-guide/cgroup-v2.html) in the cgroup for the process. 
   For example, a IOBytesPerSecond of 1000000000 would be similar to 259:1 rbps=1000000000 wbps=1000000000 riops=max wiops=max in the cgroup's io.max file. 
 
-  - _**Command**_ is the command to execute. For example, _/bin/bash_. 
+  - _`Command`_ is the command to execute. For example, _/bin/bash_. 
   
-  - _**Arguments**_ are the arguments to pass to the command. 
+  - _`Arguments`_ are the arguments to pass to the command. 
   For example, []string{"-c", "echo hello"} would be provided to command and ultimately run similar to /bin/bash -c "echo hello".
 
 
@@ -141,9 +141,9 @@ The user is expected to provide CPU, memory, and IO limits.
   - create new [cgroup](https://docs.kernel.org/admin-guide/cgroup-v2.html) for the job - e.g `/sys/fs/cgroup/<UUID>`
   - create subtree to control resources - e.g. `+cpu +memory +io` into file `/sys/fs/cgroup/<UUID>/cgroup.subtree_control`
   - set value for CPU, Memory and IO limits based on job configuration 
-    - **CPU** - set by writing QUOTA/PERIOD into `/sys/fs/cgroup/<UUID>/tasks/cpu.max`
-    - **Memory** - set by writing the provided IOBytesPerSecond to `/sys/fs/cgroup/<uuid>/tasks/memory.max`
-    - **IO** - is set by writing IOBytesPerSecond into `<MAJOR NUMBER OF PHYSICAL DEVICE>:<MINOR NUMBER OF PHYSICAL DEVICE> rbps=<IOBytesPerSecond> wbps=<IOBytesPerSecond> riops=max wiops=max` to `/sys/fs/cgroup/<UUID>/tasks/io.max` <br/><br/>_Note_:  `<MAJOR NUMBER OF PHYSICAL DEVICE>` and `<MINOR NUMBER OF PHYSICAL DEVICE>` shoudl be dynamically detected and provided during runtime.
+    - `CPU` - set by writing QUOTA/PERIOD into `/sys/fs/cgroup/<UUID>/tasks/cpu.max`
+    - `Memory` - set by writing the provided IOBytesPerSecond to `/sys/fs/cgroup/<uuid>/tasks/memory.max`
+    - `IO` - is set by writing IOBytesPerSecond into `<MAJOR NUMBER OF PHYSICAL DEVICE>:<MINOR NUMBER OF PHYSICAL DEVICE> rbps=<IOBytesPerSecond> wbps=<IOBytesPerSecond> riops=max wiops=max` to `/sys/fs/cgroup/<UUID>/tasks/io.max` <br/><br/>_Note_:  `<MAJOR NUMBER OF PHYSICAL DEVICE>` and `<MINOR NUMBER OF PHYSICAL DEVICE>` shoudl be dynamically detected and provided during runtime.
   - configures a new [exec.Cmd](https://pkg.go.dev/os/exec#Cmd)
     - sets clone flags for creating new mount, pid, and network namespaces 
     - sets unshare flags for mount so that new mounts are not reflected in host mount namespace 
@@ -164,8 +164,63 @@ Calling `Stream` for not-existing or not-started job returns empty `OutputReader
 * **func (\*Job) Stop() error** - attempt to gracefully shutdown the process.
 `Stop` will do nothing if the process has already completed or been killed.
 
+### API 
+
+#### Security
+
+The client and API communicate via mTLS using TLS 1.3 as the minimum version. The following cipher suites are supported:
+
+* TLS_AES_256_GCM_SHA384
+* TLS_CHACHA20_POLY1305_SHA256
+* TLS_AES_128_GCM_SHA256
+
+> Note: only following 3 cipher suites enabled openssl by default: https://wiki.openssl.org/index.php/TLS1.3
+
+> Since there are no requirements for older versions of TLS to be supported, TLS v1.3 will be made a minimum.
+
+#### Authorization
+All verification should be done on API level and API treats the client's common name (CN) in the certificate as the user's identity.
+Client not able interact with a job not created by them in any way (Query, Stream, Status, Stop another user's job is not allowed).
+
+API not cache any user authorization data and this data should be provided for every API call.
+
+#### Proposed Protobuf
+Following [protobuf](https://protobuf.dev/programming-guides/proto3/) proposed for the client/server:
+
+```protobuf
+syntax = "proto3";
+
+package jobworker;
+
+service JobWorker {
+  rpc Start(JobConfig) returns (Job) {}
+  rpc Query(Job) returns (JobStatus) {}
+  rpc Stream(Job) returns (stream Output) {}
+  rpc Stop(Job) returns (JobStatus) {}
+}
+
+message Job {
+  string uuid = 1;
+}
+
+message JobConfig {
+  double cpu = 1;
+  int64 membytes = 2;
+  int64 iobytespersecond = 3;
+  string command = 4;
+  repeated string args = 5;
+}
+
+message JobStatus {
+  string status = 1;
+  int32 exitcode = 2;
+  string exitreason = 3;
+}
+
+message Output {
+  bytes content = 1;
+}
+```
+
 ### Client/CLI 
 
-### 
-
-### Test Plan
