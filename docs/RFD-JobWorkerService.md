@@ -9,7 +9,6 @@ state: draft
 
 Engineering: [@smallinsky](https://github.com/smallinsky) || [@greedy52](https://github.com/greedy52) || [@r0mant](https://github.com/r0mant)  || [@russjones](https://github.com/russjones)
 
-
 ## What
 
 Design job worker service (JobWorker) that enables authorized users run arbitrary
