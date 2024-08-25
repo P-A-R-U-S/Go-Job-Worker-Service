@@ -122,14 +122,14 @@ The user is expected to provide CPU, memory, and IO limits.
   - _`MemBytes`_ - maximum amount of memory used by the job. 
   This is configured by setting [memory.max](https://docs.kernel.org/admin-guide/cgroup-v2.html). 
   
-  - _`IOBytesPerSecond`_ is the maximum read and write on the device mounted / is mounted on. 
+  - _`IOBytesPerSecond`_ - maximum read and write on the device mounted / is mounted on. 
   This is configured by setting [io.max](https://docs.kernel.org/admin-guide/cgroup-v2.html) in the cgroup for the process. 
-  For example, a IOBytesPerSecond of 1000000000 would be similar to 259:1 rbps=1000000000 wbps=1000000000 riops=max wiops=max in the cgroup's io.max file. 
+  For example, a IOBytesPerSecond of 1000000000 would be similar to `259:1 rbps=1000000000 wbps=1000000000 riops=max wiops=max` in the cgroup's `io.max` file. 
 
-  - _`Command`_ is the command to execute. For example, _/bin/bash_. 
+  - _`Command`_ - command to execute. For example, `_/bin/bash_`. 
   
-  - _`Arguments`_ are the arguments to pass to the command. 
-  For example, "-c", "echo hello"}would be provided to command and ultimately run similar to /bin/bash -c "echo hello".
+  - _`Arguments`_ - arguments to pass to the command. 
+  For example, `"-c" "echo hello"` would be provided to command and ultimately run similar to `/bin/bash -c "echo hello".`
 
 
 * **func New(config JobConfig) \*Job** - create new Job instance, based on provided job configuration.
@@ -151,7 +151,7 @@ The user is expected to provide CPU, memory, and IO limits.
     - sets [UseCgroupFD and CgroupFD](https://pkg.go.dev/syscall#SysProcAttr) to the cgroup's file descriptor such as `/sys/fs/cgroup/<UUID>/tasks`
   - runs the configured `exec.Cmd` in a new goroutine
     - does not wait for the command to complete 
-    - the goroutine will stop when the process completes or is killed
+    - the goroutine will stop when the process completes or stopped
 
 
 * **func (\*Job) Status() JobStatus** - returns the current status of the job (see [JobStatus](#type-JobStatus))
