@@ -1,15 +1,27 @@
 package main
 
 import (
-	"github.com/P-A-R-U-S/Go-Job-Worker-Service/pkg/proto"
+	"crypto/tls"
+	"crypto/x509"
+	"fmt"
 	"github.com/urfave/cli"
+	"google.golang.org/grpc/credentials"
 	"log"
 	"os"
 )
 
 func main() {
 	a := cli.NewApp()
-	a.Name = "Jow Worker Client"
+	initFlags(a)
+	err := a.Run(os.Args)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func initFlags(a *cli.App) {
+	a.Name = "Jow Worker Command Line Interface"
 	a.Usage = "Connect to JobWorker Service to run arbitrary Linux command on remote hosts"
 	a.Email = "ValentynPonomarenko@gmail.com"
 
@@ -56,14 +68,31 @@ func main() {
 		}
 		return err
 	}
-
-	err := a.Run(os.Args)
-
-	if err != nil {
-		log.Fatal(err)
-	}
 }
 
-func getGRPCClient() *proto.JobWorkerClient {
+func loadTLSCredentials(pemClientCACertificate, pemClientCertificate, pemClientPrivateKey string) (credentials.TransportCredentials, error) {
+	// load certificate of the CA who signed server's certificate
+	perServerCA, err := os.ReadFile(pemClientCACertificate)
+	if err != nil {
+		return nil, err
+	}
 
+	// load client CA certificate
+	certPool := x509.NewCertPool()
+	if !certPool.AppendCertsFromPEM(perServerCA) {
+		return nil, fmt.Errorf("failed to append client CA's certificates")
+	}
+
+	// load server certificate and private key
+	clientCert, err := tls.LoadX509KeyPair(pemClientCertificate, pemClientPrivateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	config := &tls.Config{
+		Certificates: []tls.Certificate{clientCert},
+		RootCAs:      certPool,
+	}
+
+	return credentials.NewTLS(config), nil
 }
