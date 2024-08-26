@@ -158,10 +158,15 @@ The user is expected to provide CPU, memory, and IO limits.
 
 
 * **func (\*Job) Stream() OutputReader** - returns an `OutputReader` (type that implements [io.Reader](https://pkg.go.dev/io#Reader)). 
-`OutputReader` return entire output from when job started to the current output. `Stream` can call when job started, executing or completed.
-Calling `Stream` for not-existing or not-started job returns empty `OutputReader`.
+`OutputReader` return entire output from when job started to the current output. 
+  
+  `OutputReader` enables a user to read the combined output of the process's stdout and stderr as it runs.
+
+  `Stream` can call when job started, executing or completed.
+  Calling `Stream` for not-existing or not-started job returns empty `OutputReader`.
 
 
+****
 * **func (\*Job) Stop() error** - attempt to gracefully shutdown the process.
 `Stop` will do nothing if the process has already completed or been killed.
 
