@@ -216,39 +216,45 @@ API not cache any user authorization data and such data should be provided for e
 Following [protobuf](https://protobuf.dev/programming-guides/proto3/) proposed for the client/server:
 
 ```protobuf
-  syntax = "proto3";
+  syntax="proto3";
 
-  package jobworker;
-  
-  // option go_package
-  
+  option go_package = "<package_name>/proto";
+
+  package proto;
+
   service JobWorker {
-    rpc Start(JobConfig) returns (Job) {}
-    rpc Status(Job) returns (JobStatus) {}
-    rpc Stream(Job) returns (stream Output) {}
-    rpc Stop(Job) returns (JobStatus) {}
+    rpc Start(JobCreateRequest) returns (JobResponse) {}
+    rpc Status(JobRequest) returns (JobStatusResponse) {}
+    rpc Stream(JobRequest) returns (stream OutputResponse) {}
+    rpc Stop(JobRequest) returns (JobStatusResponse) {}
   }
-  
-  message Job {
-    string uuid = 1;
-  }
-  
-  message JobConfig {
-    double cpu = 1;
-    int64 membytes = 2;
-    int64 iobytespersecond = 3;
-    string command = 4;
+
+  // requests
+  message JobCreateRequest {
+    double  cpu = 1;
+    int64   memBytes = 2;
+    int64   ioBytesPerSecond = 3;
+    int64   command = 4;
     repeated string args = 5;
   }
-  
-  message JobStatus {
-    string status = 1;
-    int32 exitcode = 2;
-    string exitreason = 3;
+
+  message JobRequest {
+    string  uuid = 1;
   }
-  
-  message Output {
-    bytes content = 1;
+
+  // responses
+  message JobResponse {
+    string  uuid = 1;
+  }
+
+  message JobStatusResponse {
+    string  status = 1;
+    int32   exitCode = 2;
+    string  exitReason = 3;
+  } 
+
+  message OutputResponse {
+    bytes   content = 1;
   }
 ```
 
