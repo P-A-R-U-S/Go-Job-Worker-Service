@@ -188,7 +188,8 @@ functionality via [gRPC](https://grpc.io/)
   * call `Stop` function if `Job` was found, otherwise return error
   
   > **Not any job and it output removed from then server**. So, depend on the load and size of total output it would come to OOM situation sooner or later and [panic](https://go.dev/blog/defer-panic-and-recover).
-  > Probably we need to consider some API or process to clean completed jobs based on size, date of creation, frequency of usage or etc.
+   
+  > **[Out of scope]** _Probably we need to consider some API or process to clean completed jobs based on size, date of creation, frequency of usage or etc._
   
 
 #### Security
