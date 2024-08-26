@@ -57,7 +57,7 @@ func main() {
 					&cli.StringFlag{
 						Name:     START_COMMAND_FLAG_COMMAND,
 						Aliases:  []string{"command"},
-						Usage:    "maximum read and write on the device mounted / is mounted on",
+						Usage:    "command to execute",
 						Required: true,
 					},
 				},
