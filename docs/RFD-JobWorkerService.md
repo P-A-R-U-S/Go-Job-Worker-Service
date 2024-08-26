@@ -98,7 +98,7 @@ The user is expected to provide CPU, memory, and IO limits.
       ExitReason string
     }
     ```
-  - _`State`_ latest state of the job (_Started, Executing, Stopped, Completed_).
+  - _`State`_ latest state of the job (_Started, Running, Stopped, Failed, Completed_).
   
   - _`ExitCode`_ - exit code (if process invoked exit), otherwise would be -1 if not in a completed state.
   
@@ -217,18 +217,18 @@ Following [protobuf](https://protobuf.dev/programming-guides/proto3/) proposed f
 
 ```protobuf
   syntax="proto3";
-
+  
   option go_package = "<package_name>/proto";
-
+  
   package proto;
-
+  
   service JobWorker {
     rpc Start(JobCreateRequest) returns (JobResponse) {}
     rpc Status(JobRequest) returns (JobStatusResponse) {}
     rpc Stream(JobRequest) returns (stream OutputResponse) {}
     rpc Stop(JobRequest) returns (JobStatusResponse) {}
   }
-
+  
   // requests
   message JobCreateRequest {
     double  cpu = 1;
@@ -237,25 +237,34 @@ Following [protobuf](https://protobuf.dev/programming-guides/proto3/) proposed f
     int64   command = 4;
     repeated string args = 5;
   }
-
+  
   message JobRequest {
     string  uuid = 1;
   }
-
+  
   // responses
   message JobResponse {
     string  uuid = 1;
   }
+  
+  enum Status {
+    Started   = 0;
+    Running   = 1;
+    Stopped   = 2;
+    Failed    = 3;
+    Completed = 4;
+  }
 
   message JobStatusResponse {
-    string  status = 1;
+    Status  status = 1;
     int32   exitCode = 2;
     string  exitReason = 3;
-  } 
+  }
 
   message OutputResponse {
     bytes   content = 1;
   }
+
 ```
 
 ### Client/CLI 
