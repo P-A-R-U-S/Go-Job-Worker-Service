@@ -262,12 +262,11 @@ Here is example below how user interact via CLI and expected output
 #### Starting new job
 
 ```text
-    jw start --ca-cert <PATH_TO_CA_CERT> \
+    jw start \
     --client-cert <PATH_TO_CLIENT_CERT> \
-    --client-key <PATH_TO_CLIENT_KEY> \
-    --cpu 0.5
-    --memory 500000
-    --io 1000000
+    --cpu 0.5 \
+    --memory 500000 \
+    --io 1000000 \
     --c $(which date)
 ```
 
@@ -283,10 +282,7 @@ Jod:<UUID> stared.
 #### Query job status
 
 ```text
-  jw status --ca-cert <PATH_TO_CA_CERT> \
-    --client-cert <PATH_TO_CLIENT_CERT> \
-    --client-key <PATH_TO_CLIENT_KEY> \
-    --id <UUID>
+  jw status --client-cert <PATH_TO_CLIENT_CERT> --id <UUID>
 ```
 
 expected output if started
@@ -306,10 +302,7 @@ Jod:<UUID> has status: Stopped. ExitCode:-1, ExitReason: <ERROR DETAILS>
 
 #### Streaming job output
 ```text
-  jw stream --ca-cert <PATH_TO_CA_CERT> \
-    --client-cert <PATH_TO_CLIENT_CERT> \
-    --client-key <PATH_TO_CLIENT_KEY> \
-    --id <UUID>
+  jw stream  --client-cert <PATH_TO_CLIENT_CERT> --id <UUID>
 ```
 
 expected output if completed
@@ -324,10 +317,7 @@ In the case that the job has completed, the command will print the output and th
 #### Stopping a job
 
 ```text
-  jw stop --ca-cert <PATH_TO_CA_CERT> \
-    --client-cert <PATH_TO_CLIENT_CERT> \
-    --client-key <PATH_TO_CLIENT_KEY> \
-    --id <UUID>
+  jw stop --client-cert <PATH_TO_CLIENT_CERT> --id <UUID>
 ```
 
 expected output if completed
