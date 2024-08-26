@@ -29,8 +29,16 @@ message JobResponse {
   string  uuid = 1;
 }
 
+enum Status {
+  Started   = 0;
+  Running   = 1;
+  Stopped   = 2;
+  Failed    = 3;
+  Completed = 4;
+}
+
 message JobStatusResponse {
-  string  status = 1;
+  Status  status = 1;
   int32   exitCode = 2;
   string  exitReason = 3;
 }
@@ -38,6 +46,3 @@ message JobStatusResponse {
 message OutputResponse {
   bytes   content = 1;
 }
-
-
-

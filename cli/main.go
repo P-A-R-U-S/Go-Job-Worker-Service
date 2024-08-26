@@ -19,10 +19,54 @@ const (
 	ARGUMENT_CLIENT_PRIVATE_KEY = "client-key"
 )
 
+const (
+	START_COMMAND_FLAG_CPU                 = "cpu"
+	START_COMMAND_FLAG_MEMORY              = "memory"
+	START_COMMAND_FLAG_IO_BYTES_PER_SECOND = "io"
+	START_COMMAND_FLAG_COMMAND             = "c"
+)
+
 func main() {
 	a := &cli.App{
 		Name:  "Jow Worker Command Line Interface",
 		Usage: "Connect to JobWorker Service to run arbitrary Linux command on remote hosts",
+		Commands: []*cli.Command{
+			{
+				Name:  "start",
+				Usage: "starting new job",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     START_COMMAND_FLAG_CPU,
+						Value:    "0.5",
+						Usage:    "approximate number of CPU cores to limit the job",
+						Required: true,
+					},
+					// TODO: in future add format support for - e.g. 100MB, 1GB and etc
+					&cli.StringFlag{
+						Name:     START_COMMAND_FLAG_MEMORY,
+						Value:    "1000000000",
+						Usage:    "maximum amount of memory used by the job",
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:     START_COMMAND_FLAG_IO_BYTES_PER_SECOND,
+						Value:    "1000000",
+						Usage:    "maximum read and write on the device mounted / is mounted on",
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:     START_COMMAND_FLAG_COMMAND,
+						Aliases:  []string{"command"},
+						Usage:    "maximum read and write on the device mounted / is mounted on",
+						Required: true,
+					},
+				},
+				Action: func(cCtx *cli.Context) error {
+					fmt.Println("added task: ", cCtx.Args().First())
+					return nil
+				},
+			},
+		},
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     ARGUMENT_HOST,
