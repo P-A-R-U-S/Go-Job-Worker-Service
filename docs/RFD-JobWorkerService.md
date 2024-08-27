@@ -200,13 +200,11 @@ functionality via [gRPC](https://grpc.io/)
 > signal and notify client side via [context with cancellation](https://pkg.go.dev/context#WithCancel)
 > Also server should loop through the list of job and run stop process for all running jobs.
 
-  > **Not any job and it output removed from then server**. So, depend on the load and size of total output it would come to OOM situation sooner or later and [panic](https://go.dev/blog/defer-panic-and-recover).
+> **Not any job and it output removed from then server**. So, depend on the load and size of total output it would come to OOM situation sooner or later and [panic](https://go.dev/blog/defer-panic-and-recover).
 
-  > **[Out of scope]** _Probably we need to consider some API or process to clean completed jobs based on size, date of creation, frequency of usage or etc._
+> **[Out of scope]** _Probably we need to consider some API or process to clean completed jobs based on size, date of creation, frequency of usage or etc._
 
 
-
-  
 #### Security
 
 The client and API communicate via mTLS using [TLS 1.3 ](https://datatracker.ietf.org/doc/html/rfc8446) as the minimum version. The following cipher suites are supported:
