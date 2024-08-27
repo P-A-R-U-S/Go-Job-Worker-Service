@@ -248,7 +248,7 @@ Following [protobuf](https://protobuf.dev/programming-guides/proto3/) proposed f
     double  cpu = 1;
     int64   memBytes = 2;
     int64   ioBytesPerSecond = 3;
-    int64   command = 4;
+    string   command = 4;
     repeated string args = 5;
   }
   
