@@ -165,7 +165,6 @@ The user is expected to provide CPU, memory, and IO limits.
   `Stream` can call when job started, executing or completed.
   Calling `Stream` for not-existing or not-started job returns empty `OutputReader`.
 
-
 ****
 * **func (\*Job) Stop() error** - attempt to gracefully shutdown the process.
 `Stop` will do nothing if the process has already completed or been killed.
@@ -348,6 +347,12 @@ The command will continue to print the output until the job completes or stopped
 
 In the case that the job has completed, the command will print the output and then exit.
 
+> [!IMPORTANT]
+> Client should notify server side when client/cli has stop processing stream or cli is terminating by any reason.
+> Unexpected termination should be done by handling [SIGTERM](https://www.gnu.org/software/libc/manual/html_node/Termination-Signals.html)
+> signal and notify server side via [context with cancellation](https://pkg.go.dev/context#WithCancel)
+> 
+> 
 #### Stopping a job
 
 ```text
