@@ -193,14 +193,15 @@ functionality via [gRPC](https://grpc.io/)
   * send `kill process` and wait some period of time (probably up to 1000 msec)
   * if process still running ior failed to terminate - forcible terminate process.
 
-  > [!IMPORTANT]
-  > Server should gracefully handle case when server terminating by external process or OS. 
-  > Unexpected termination handling via [SIGTERM](https://www.gnu.org/software/libc/manual/html_node/Termination-Signals.html)
-  > signal and notify client side via [context with cancellation](https://pkg.go.dev/context#WithCancel)
-  > Also server should loop through the list of job and run stop process for all running jobs.
-  
+
+> [!IMPORTANT]
+> Server should gracefully handle case when server terminating by external process or OS. 
+> Unexpected termination handling via [SIGTERM](https://www.gnu.org/software/libc/manual/html_node/Termination-Signals.html)
+> signal and notify client side via [context with cancellation](https://pkg.go.dev/context#WithCancel)
+> Also server should loop through the list of job and run stop process for all running jobs.
+
   > **Not any job and it output removed from then server**. So, depend on the load and size of total output it would come to OOM situation sooner or later and [panic](https://go.dev/blog/defer-panic-and-recover).
-   
+
   > **[Out of scope]** _Probably we need to consider some API or process to clean completed jobs based on size, date of creation, frequency of usage or etc._
 
 
