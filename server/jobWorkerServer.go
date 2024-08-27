@@ -8,15 +8,8 @@ import (
 	"log"
 )
 
-const (
-	JOB_STATUS_CREATED   string = "created"
-	JOB_STATUS_STARTED   string = "started"
-	JOB_STATUS_RUNNING   string = "running"
-	JOB_STATUS_COMPLETED string = "completed"
-	JOB_STATUS_FAILED    string = "failed"
-)
-
 type JobWorkerServer struct {
+	intCh <-chan int
 }
 
 func NewJobWorkerServer() *JobWorkerServer {
@@ -32,7 +25,7 @@ func (s JobWorkerServer) Start(ctx context.Context, request *proto.JobCreateRequ
 func (s JobWorkerServer) Status(ctx context.Context, request *proto.JobRequest) (*proto.JobStatusResponse, error) {
 	jobUUID := uuid.New()
 	log.Printf("new job with UUID: %s created\n", jobUUID)
-	return &proto.JobStatusResponse{Status: JOB_STATUS_CREATED, ExitCode: -1, ExitReason: ""}, nil
+	return &proto.JobStatusResponse{Status: proto.Status_Started, ExitCode: -1, ExitReason: ""}, nil
 }
 
 func (s JobWorkerServer) Stream(request *proto.JobRequest, g grpc.ServerStreamingServer[proto.OutputResponse]) error {
@@ -43,7 +36,7 @@ func (s JobWorkerServer) Stream(request *proto.JobRequest, g grpc.ServerStreamin
 func (s JobWorkerServer) Stop(ctx context.Context, request *proto.JobRequest) (*proto.JobStatusResponse, error) {
 	jobUUID := uuid.New()
 	log.Printf("new job with UUID: %s created\n", jobUUID)
-	return &proto.JobStatusResponse{Status: JOB_STATUS_COMPLETED, ExitCode: -1, ExitReason: ""}, nil
+	return &proto.JobStatusResponse{Status: proto.Status_Stopped, ExitCode: -1, ExitReason: ""}, nil
 }
 
 func (s JobWorkerServer) mustEmbedUnimplementedJobWorkerServer() {

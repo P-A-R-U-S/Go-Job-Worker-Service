@@ -1,15 +1,22 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"github.com/P-A-R-U-S/Go-Job-Worker-Service/pkg/proto"
+	"github.com/google/uuid"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"io"
 	"log"
 	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 )
 
 const (
@@ -24,6 +31,10 @@ const (
 	START_COMMAND_FLAG_MEMORY              = "memory"
 	START_COMMAND_FLAG_IO_BYTES_PER_SECOND = "io"
 	START_COMMAND_FLAG_COMMAND             = "c"
+)
+
+var (
+	ErrNoAbleToCreateClient = errors.New("not able to create client")
 )
 
 func main() {
@@ -62,7 +73,28 @@ func main() {
 					},
 				},
 				Action: func(cCtx *cli.Context) error {
-					fmt.Println("added task: ", cCtx.Args().First())
+					host := cCtx.String(ARGUMENT_HOST)
+					caCert := cCtx.String(ARGUMENT_CA_CERTIFICATE)
+					clientCert := cCtx.String(ARGUMENT_CLIENT_CERTIFICATE)
+					clientKey := cCtx.String(ARGUMENT_CLIENT_PRIVATE_KEY)
+
+					fmt.Printf("connecting to service %s\n", host)
+					fmt.Printf("CA Certificate: %s\n", caCert)
+					fmt.Printf("Client Certificate: %s\n", clientCert)
+					fmt.Printf("Clint Private key: %s\n", clientKey)
+
+					client, err := getClient(host, caCert, clientCert, clientKey)
+					if err != nil {
+						return ErrNoAbleToCreateClient
+					}
+
+					command := cCtx.String(START_COMMAND_FLAG_MEMORY)
+					args := []string{}
+					cpu := cCtx.Float64(START_COMMAND_FLAG_CPU)
+					memory := cCtx.Int64(START_COMMAND_FLAG_MEMORY)
+					io := cCtx.Int64(START_COMMAND_FLAG_IO_BYTES_PER_SECOND)
+
+					start(client, command, args, cpu, memory, io)
 					return nil
 				},
 			},
@@ -104,15 +136,55 @@ func main() {
 	}
 }
 
-func start(client *proto.JobWorkerClient, command string, args []string, cpu float64, memory int64, io int64) error {
+func start(client proto.JobWorkerClient, command string, args []string, cpu float64, memory int64, io int64) error {
 	return nil
 }
 
-func status(client *proto.JobWorkerClient, command string, args []string, cpu float64, memory int64, io int64) error {
+func status(client proto.JobWorkerClient, command string, args []string, cpu float64, memory int64, io int64) error {
 	return nil
 }
 
-func stream(client *proto.JobWorkerClient, command string, args []string, cpu float64, memory int64, io int64) error {
+func stream(client proto.JobWorkerClient, jobId uuid.UUID) error {
+	// Initiate the stream with a context that supports cancellation.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	request := &proto.JobRequest{
+		Uuid: jobId.String(),
+	}
+	stream, err := client.Stream(ctx, request)
+	if err != nil {
+		log.Fatalf("error creating stream: %v", err)
+	}
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		select {
+		case <-ctx.Done():
+			return
+		case s := <-sigCh:
+			log.Printf("got signal %v, attempting graceful shutdown", s)
+			cancel()
+		}
+	}()
+
+	for {
+		output, err := stream.Recv()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				fmt.Print(string(output.GetContent()))
+				break
+			}
+			return fmt.Errorf("failed to receive output: %w", err)
+		}
+
+		fmt.Print(string(output.GetContent()))
+	}
+
 	return nil
 }
 
@@ -120,68 +192,13 @@ func stop(client *proto.JobWorkerClient, command string, args []string, cpu floa
 	return nil
 }
 
-//func initFlags(a *cli.App) {
-//	a.Name = "Jow Worker Command Line Interface"
-//	a.Usage = "Connect to JobWorker Service to run arbitrary Linux command on remote hosts"
-//	a.Email = "ValentynPonomarenko@gmail.com"
-//
-//	a.Flags = []cli.Flag{
-//		cli.StringFlag{
-//			Name:  "start",
-//			Usage: "start --client-cert <PATH_TO_CLIENT_CERT> --cpu 0.5 --memory 500000 --io 1000000 --c $(which date)",
-//		},
-//		cli.StringFlag{
-//			Name:  "status",
-//			Usage: "jw status --client-cert <PATH_TO_CLIENT_CERT> --id <UUID>",
-//		},
-//		cli.StringFlag{
-//			Name:  "stream",
-//			Usage: "stream --client-cert <PATH_TO_CLIENT_CERT> --id <UUID>",
-//		},
-//		cli.StringFlag{
-//			Name:  "stop",
-//			Usage: "stop --client-cert <PATH_TO_CLIENT_CERT> --id <UUID>",
-//		},
-//	}
-//
-//	a.Action = func(c *cli.Context) error {
-//		var err error
-//
-//		if len(c.Args()) == 0 || c.IsSet("h") || c.IsSet("help") {
-//			err = cli.ShowAppHelp(c)
-//		}
-//
-//		if c.IsSet("start") {
-//			client, err := getClient(c.)
-//		}
-//
-//		if c.IsSet("status") {
-//
-//		}
-//
-//		if c.IsSet("stream") {
-//
-//		}
-//
-//		if c.IsSet("stop") {
-//
-//		}
-//		return err
-//	}
-//}
-
-func getClient(caCertPath, clientCertPath, clientKeyPath string) (proto.JobWorkerClient, error) {
-	// TODO: make the address configurable
-	host := "localhost"
-	port := "8080"
-
+func getClient(host, caCertPath, clientCertPath, clientKeyPath string) (proto.JobWorkerClient, error) {
 	tlsCredentials, err := loadTLSCredentials(caCertPath, clientCertPath, clientKeyPath)
 	if err != nil {
 		log.Fatalf("failed to load TLS credentials: %v", err)
 	}
 
-	address := fmt.Sprintf("%d:%d", host, port)
-	clientConnection, err := grpc.NewClient(address, grpc.WithTransportCredentials(tlsCredentials))
+	clientConnection, err := grpc.NewClient(host, grpc.WithTransportCredentials(tlsCredentials))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect: %w", err)
 	}
