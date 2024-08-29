@@ -164,12 +164,17 @@ The user is expected to provide CPU, memory, and IO limits.
 * **func (\*Job) Status() JobStatus** - returns the current status of the job (see [JobStatus](#type-JobStatus))
 
 
-* **func (\*Job) Stream() OutputReader** - returns an `OutputReader` (type that implements [io.Reader](https://pkg.go.dev/io#Reader)). 
-`OutputReader` return entire output from when job started to the current output. 
+* **func (\*Job) Stream() OutputReader** - returns an `OutputReader` (type that implements [io.ReadCloser](https://pkg.go.dev/io#ReadCloser)). 
+
+  `OutputReader` return entire output from when job started to the current output. 
   
   `OutputReader` enables a user to read the combined output of the process's stdout and stderr as it runs.
+  
+  `OutputReader` also return [Closer](https://pkg.go.dev/io#Closer) to let `Steam` consumers cancel streaming 
+  at any time
 
   `Stream` can call when job started, executing or completed.
+ 
   Calling `Stream` for not-existing or not-started job returns empty `OutputReader`.
 
 
