@@ -36,7 +36,7 @@ func (s JobWorkerServer) Start(ctx context.Context, request *proto.JobCreateRequ
 func (s JobWorkerServer) Status(ctx context.Context, request *proto.JobRequest) (*proto.JobStatusResponse, error) {
 	jobUUID := uuid.New()
 	log.Printf("new job with UUID: %s created\n", jobUUID)
-	return &proto.JobStatusResponse{Status: proto.Status_Started, ExitCode: -1, ExitReason: ""}, nil
+	return &proto.JobStatusResponse{Status: proto.Status_STARTED, ExitCode: -1, ExitReason: ""}, nil
 }
 
 func (s JobWorkerServer) Stream(request *proto.JobRequest, g grpc.ServerStreamingServer[proto.OutputResponse]) error {
@@ -53,7 +53,7 @@ func (s JobWorkerServer) Stop(ctx context.Context, request *proto.JobRequest) (*
 	//}
 
 	log.Printf("new job with UUID: %s created\n", jobUUID)
-	return &proto.JobStatusResponse{Status: proto.Status_Stopped, ExitCode: -1, ExitReason: ""}, nil
+	return &proto.JobStatusResponse{Status: proto.Status_STOPPED, ExitCode: -1, ExitReason: ""}, nil
 }
 
 func (s JobWorkerServer) mustEmbedUnimplementedJobWorkerServer() {

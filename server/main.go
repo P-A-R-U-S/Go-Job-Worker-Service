@@ -14,12 +14,27 @@ import (
 	"os"
 )
 
+var (
+	ErrGetingPWD = errors.New("no able to retrieve working directory path")
+)
+
 func main() {
 	port := flag.Int("port", 8080, "the server port")
 
-	pemClientCACertificate := flag.String("client-ca-cert", "../certs/ca-cert.pem", "the client CA certificate")
-	pemServerCertificate := flag.String("server-cert", "../certs/server-cert.pem", "the server certificate")
-	pemServerPrivateKey := flag.String("server-key", "../certs/server-key.pem", "the server private key")
+	pwd, err := os.Getwd()
+	if err != nil {
+		os.Exit(1)
+		log.Fatalf("cannot execute PWD: %s", ErrGetingPWD)
+	}
+
+	// TODO: Hardcode for complete assigment, but in production should be stored on secure storage (Database, AWS Secrets or etc)
+	var pathCACert = fmt.Sprintf("%s/certs/ca-cert.pem", pwd)
+	var pathServerCert = fmt.Sprintf("%s/certs/server-cert.pem", pwd)
+	var pathServerPrivateKey = fmt.Sprintf("%s/certs/server-key.pem", pwd)
+
+	pemClientCACertificate := flag.String("client-ca-cert", pathCACert, "the client CA certificate")
+	pemServerCertificate := flag.String("server-cert", pathServerCert, "the server certificate")
+	pemServerPrivateKey := flag.String("server-key", pathServerPrivateKey, "the server private key")
 
 	flag.Parse()
 	log.Printf("start server on port: %d", *port)

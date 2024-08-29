@@ -8,6 +8,13 @@ generate_grpc_code:
 	 		--go-grpc_opt=paths=source_relative \
 	 		./pkg/proto/jobWorker.proto
 
+run_build:
+	#go build pkg/tls.go
+	#go build pgk/proto/*.go
+	go build server/*.go
+	go server/*.go
+	go cli/*.go
+
 run_server:
 	go run server/*.go -port 8080
 
