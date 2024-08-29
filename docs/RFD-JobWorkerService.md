@@ -262,11 +262,11 @@ Following [protobuf](https://protobuf.dev/programming-guides/proto3/) proposed f
   }
   
   enum Status {
-    Started   = 0;
-    Running   = 1;
-    Stopped   = 2;
-    Failed    = 3;
-    Completed = 4;
+    STARTED   = 0;
+    RUNNING   = 1;
+    STOPPED   = 2;
+    FAILED    = 3;
+    COMPLETED = 4;
   }
 
   message JobStatusResponse {
