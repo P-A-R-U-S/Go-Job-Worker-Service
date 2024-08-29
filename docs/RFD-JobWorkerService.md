@@ -253,7 +253,7 @@ Following [protobuf](https://protobuf.dev/programming-guides/proto3/) proposed f
   }
   
   message JobRequest {
-    string  uuid = 1;
+    string  id = 1;
   }
   
   // responses
