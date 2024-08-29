@@ -9,11 +9,12 @@ generate_grpc_code:
 	 		./pkg/proto/jobWorker.proto
 
 run_build:
-	#go build pkg/tls.go
+	go mod tidy
+	#go build pkg/tls/tls.go
 	#go build pgk/proto/*.go
 	go build server/*.go
-	go server/*.go
-	go cli/*.go
+	go build server/*.go
+	go build cli/*.go
 
 run_server:
 	go run server/*.go -port 8080

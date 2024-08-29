@@ -30,7 +30,7 @@ func (s JobWorkerServer) Start(ctx context.Context, request *proto.JobCreateRequ
 	cmd.Start()
 
 	log.Printf("new job with UUID: %s created\n", jobUUID)
-	return &proto.JobResponse{Uuid: jobUUID.String()}, nil
+	return &proto.JobResponse{Id: jobUUID.String()}, nil
 }
 
 func (s JobWorkerServer) Status(ctx context.Context, request *proto.JobRequest) (*proto.JobStatusResponse, error) {

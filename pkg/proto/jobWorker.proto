@@ -13,20 +13,20 @@ service JobWorker {
 
 // requests
 message JobCreateRequest {
-  double  cpu = 1;
-  int64   memBytes = 2;
-  int64   ioBytesPerSecond = 3;
-  string   command = 4;
-  repeated string args = 5;
+  double  CPU = 1;
+  int64   MemBytes = 2;
+  int64   IoBytesPerSecond = 3;
+  string  Command = 4;
+  repeated string Args = 5;
 }
 
 message JobRequest {
-  string  id = 1;
+  string  Id = 1;
 }
 
 // responses
 message JobResponse {
-  string  id = 1;
+  string  Id = 1;
 }
 
 enum Status {

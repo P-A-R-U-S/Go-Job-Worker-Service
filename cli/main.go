@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/P-A-R-U-S/Go-Job-Worker-Service/pkg/proto"
-	"github.com/google/uuid"
 	"github.com/urfave/cli/v2"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -20,17 +19,15 @@ import (
 )
 
 const (
-	ARGUMENT_HOST               = "host"
-	ARGUMENT_CA_CERTIFICATE     = "ca-cert"
-	ARGUMENT_CLIENT_CERTIFICATE = "client-cert"
-	ARGUMENT_CLIENT_PRIVATE_KEY = "client-key"
-)
-
-const (
-	START_COMMAND_FLAG_CPU                 = "cpu"
-	START_COMMAND_FLAG_MEMORY              = "memory"
-	START_COMMAND_FLAG_IO_BYTES_PER_SECOND = "io"
-	START_COMMAND_FLAG_COMMAND             = "c"
+	COMMAND_FLAG_HOST                = "host"
+	COMMAND_FLAG_CERTIFICATE         = "ca-cert"
+	COMMAND_FLAG_CLIENT_CERTIFICATE  = "client-cert"
+	COMMAND_FLAG_CLIENT_PRIVATE_KEY  = "client-key"
+	COMMAND_FLAG_CPU                 = "cpu"
+	COMMAND_FLAG_MEMORY              = "memory"
+	COMMAND_FLAG_IO_BYTES_PER_SECOND = "io"
+	COMMAND_FLAG_COMMAND             = "c"
+	COMMAND_FLAG_ID                  = "id"
 )
 
 var (
@@ -41,93 +38,149 @@ func main() {
 	a := &cli.App{
 		Name:  "Jow Worker Command Line Interface",
 		Usage: "Connect to JobWorker Service to run arbitrary Linux command on remote hosts",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:     COMMAND_FLAG_HOST,
+				Value:    "localhost",
+				Usage:    "server IP:PORT to connect",
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:     COMMAND_FLAG_CERTIFICATE,
+				Usage:    "client certificate authority (CA)",
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:     COMMAND_FLAG_CLIENT_CERTIFICATE,
+				Usage:    "client mTLS certificate",
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:     COMMAND_FLAG_CLIENT_PRIVATE_KEY,
+				Usage:    "client private key",
+				Required: true,
+			},
+		},
+		Action: func(cCtx *cli.Context) error {
+			fmt.Printf("connecting to service %s\n", cCtx.String(COMMAND_FLAG_HOST))
+			fmt.Printf("CA Certificate: %s\n", cCtx.String(COMMAND_FLAG_CERTIFICATE))
+			fmt.Printf("Client Certificate: %s\n", cCtx.String(COMMAND_FLAG_CLIENT_CERTIFICATE))
+			fmt.Printf("Clint Private key: %s\n", cCtx.String(COMMAND_FLAG_CLIENT_PRIVATE_KEY))
+			return nil
+		},
 		Commands: []*cli.Command{
 			{
 				Name:  "start",
 				Usage: "starting new job",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:     START_COMMAND_FLAG_CPU,
+						Name:     COMMAND_FLAG_CPU,
 						Value:    "0.5",
 						Usage:    "approximate number of CPU cores to limit the job",
 						Required: true,
 					},
 					// TODO: in future add format support for - e.g. 100MB, 1GB and etc
 					&cli.StringFlag{
-						Name:     START_COMMAND_FLAG_MEMORY,
+						Name:     COMMAND_FLAG_MEMORY,
 						Value:    "1000000000",
 						Usage:    "maximum amount of memory used by the job",
 						Required: true,
 					},
 					&cli.StringFlag{
-						Name:     START_COMMAND_FLAG_IO_BYTES_PER_SECOND,
+						Name:     COMMAND_FLAG_IO_BYTES_PER_SECOND,
 						Value:    "1000000",
 						Usage:    "maximum read and write on the device mounted / is mounted on",
 						Required: true,
 					},
 					&cli.StringFlag{
-						Name:     START_COMMAND_FLAG_COMMAND,
+						Name:     COMMAND_FLAG_COMMAND,
 						Aliases:  []string{"command"},
 						Usage:    "command to execute",
 						Required: true,
 					},
 				},
 				Action: func(cCtx *cli.Context) error {
-					host := cCtx.String(ARGUMENT_HOST)
-					caCert := cCtx.String(ARGUMENT_CA_CERTIFICATE)
-					clientCert := cCtx.String(ARGUMENT_CLIENT_CERTIFICATE)
-					clientKey := cCtx.String(ARGUMENT_CLIENT_PRIVATE_KEY)
-
-					fmt.Printf("connecting to service %s\n", host)
-					fmt.Printf("CA Certificate: %s\n", caCert)
-					fmt.Printf("Client Certificate: %s\n", clientCert)
-					fmt.Printf("Clint Private key: %s\n", clientKey)
-
-					client, err := getClient(host, caCert, clientCert, clientKey)
+					client, err := createClient(cCtx)
 					if err != nil {
 						return ErrNoAbleToCreateClient
 					}
 
-					command := cCtx.String(START_COMMAND_FLAG_MEMORY)
+					command := cCtx.String(COMMAND_FLAG_MEMORY)
 					args := []string{}
-					cpu := cCtx.Float64(START_COMMAND_FLAG_CPU)
-					memory := cCtx.Int64(START_COMMAND_FLAG_MEMORY)
-					io := cCtx.Int64(START_COMMAND_FLAG_IO_BYTES_PER_SECOND)
+					cpu := cCtx.Float64(COMMAND_FLAG_CPU)
+					memory := cCtx.Int64(COMMAND_FLAG_MEMORY)
+					io := cCtx.Int64(COMMAND_FLAG_IO_BYTES_PER_SECOND)
 
 					start(client, command, args, cpu, memory, io)
 					return nil
 				},
 			},
-		},
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:     ARGUMENT_HOST,
-				Value:    "localhost",
-				Usage:    "server IP:PORT to connect",
-				Required: true,
+			{
+				Name:  "status",
+				Usage: "request job's status",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     COMMAND_FLAG_ID,
+						Usage:    "job id",
+						Required: true,
+					},
+				},
+				Action: func(cCtx *cli.Context) error {
+					client, err := createClient(cCtx)
+					if err != nil {
+						return ErrNoAbleToCreateClient
+					}
+
+					jobId := cCtx.String(COMMAND_FLAG_ID)
+					fmt.Printf("job id: %s\n", jobId)
+
+					return status(client, jobId)
+				},
 			},
-			&cli.StringFlag{
-				Name:     ARGUMENT_CA_CERTIFICATE,
-				Usage:    "client certificate authority (CA)",
-				Required: true,
+			{
+				Name:  "stream",
+				Usage: "request job's output stream",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     COMMAND_FLAG_ID,
+						Usage:    "job id",
+						Required: true,
+					},
+				},
+				Action: func(cCtx *cli.Context) error {
+					client, err := createClient(cCtx)
+					if err != nil {
+						return ErrNoAbleToCreateClient
+					}
+
+					jobId := cCtx.String(COMMAND_FLAG_ID)
+					fmt.Printf("job id: %s\n", jobId)
+
+					return stream(client, jobId)
+				},
 			},
-			&cli.StringFlag{
-				Name:     ARGUMENT_CLIENT_CERTIFICATE,
-				Usage:    "client mTLS certificate",
-				Required: true,
+			{
+				Name:  "stop",
+				Usage: "stop job execution",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     COMMAND_FLAG_ID,
+						Usage:    "job id",
+						Required: true,
+					},
+				},
+				Action: func(cCtx *cli.Context) error {
+					client, err := createClient(cCtx)
+					if err != nil {
+						return ErrNoAbleToCreateClient
+					}
+
+					jobId := cCtx.String(COMMAND_FLAG_ID)
+					fmt.Printf("job id: %s\n", jobId)
+
+					return stop(client, jobId)
+				},
 			},
-			&cli.StringFlag{
-				Name:     ARGUMENT_CLIENT_PRIVATE_KEY,
-				Usage:    "client private key",
-				Required: true,
-			},
-		},
-		Action: func(cCtx *cli.Context) error {
-			fmt.Printf("connecting to service %s\n", cCtx.String(ARGUMENT_HOST))
-			fmt.Printf("CA Certificate: %s\n", cCtx.String(ARGUMENT_CA_CERTIFICATE))
-			fmt.Printf("Client Certificate: %s\n", cCtx.String(ARGUMENT_CLIENT_CERTIFICATE))
-			fmt.Printf("Clint Private key: %s\n", cCtx.String(ARGUMENT_CLIENT_PRIVATE_KEY))
-			return nil
 		},
 	}
 
@@ -136,25 +189,58 @@ func main() {
 	}
 }
 
-func start(client proto.JobWorkerClient, command string, args []string, cpu float64, memory int64, io int64) error {
+func start(client proto.JobWorkerClient, command string, args []string, cpu float64, memBytes int64, ioBytesPerSecond int64) error {
+	// Initiate the stream with a context that supports cancellation.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	request := &proto.JobCreateRequest{
+		CPU:              cpu,
+		MemBytes:         memBytes,
+		IoBytesPerSecond: ioBytesPerSecond,
+		Command:          command,
+		Args:             args,
+	}
+
+	response, err := client.Start(ctx, request)
+	if err != nil {
+		return fmt.Errorf("error creating stream: %v", err)
+	}
+
+	log.Printf("Jod:%s created.", response.Id)
 	return nil
 }
 
-func status(client proto.JobWorkerClient, command string, args []string, cpu float64, memory int64, io int64) error {
+func status(client proto.JobWorkerClient, jobId string) error {
+	job := &proto.JobRequest{
+		Id: jobId,
+	}
+
+	response, err := client.Status(context.Background(), job)
+	if err != nil {
+		return fmt.Errorf("failed to get status: %w", err)
+	}
+
+	fmt.Printf("Jod:%s has status: %s. ExitCode:%d, ExitReason:%s\n",
+		jobId,
+		response.GetStatus(),
+		response.GetExitCode(),
+		response.GetExitReason())
+
 	return nil
 }
 
-func stream(client proto.JobWorkerClient, jobId uuid.UUID) error {
+func stream(client proto.JobWorkerClient, jobId string) error {
 	// Initiate the stream with a context that supports cancellation.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	request := &proto.JobRequest{
-		Uuid: jobId.String(),
+		Id: jobId,
 	}
 	stream, err := client.Stream(ctx, request)
 	if err != nil {
-		log.Fatalf("error creating stream: %v", err)
+		return fmt.Errorf("error creating stream: %v", err)
 	}
 
 	sigCh := make(chan os.Signal, 1)
@@ -188,8 +274,37 @@ func stream(client proto.JobWorkerClient, jobId uuid.UUID) error {
 	return nil
 }
 
-func stop(client *proto.JobWorkerClient, command string, args []string, cpu float64, memory int64, io int64) error {
+func stop(client proto.JobWorkerClient, jobId string) error {
+	job := &proto.JobRequest{
+		Id: jobId,
+	}
+
+	response, err := client.Status(context.Background(), job)
+	if err != nil {
+		return fmt.Errorf("failed to get status: %w", err)
+	}
+
+	fmt.Printf("Jod:%s has status: %s. ExitCode:%d, ExitReason:%s\n",
+		jobId,
+		response.GetStatus(),
+		response.GetExitCode(),
+		response.GetExitReason())
+
 	return nil
+}
+
+func createClient(cCtx *cli.Context) (proto.JobWorkerClient, error) {
+	host := cCtx.String(COMMAND_FLAG_HOST)
+	caCert := cCtx.String(COMMAND_FLAG_CERTIFICATE)
+	clientCert := cCtx.String(COMMAND_FLAG_CLIENT_CERTIFICATE)
+	clientKey := cCtx.String(COMMAND_FLAG_CLIENT_PRIVATE_KEY)
+
+	fmt.Printf("connecting to service %s\n", host)
+	fmt.Printf("CA Certificate: %s\n", caCert)
+	fmt.Printf("Client Certificate: %s\n", clientCert)
+	fmt.Printf("Clint Private key: %s\n", clientKey)
+
+	return getClient(host, caCert, clientCert, clientKey)
 }
 
 func getClient(host, caCertPath, clientCertPath, clientKeyPath string) (proto.JobWorkerClient, error) {
