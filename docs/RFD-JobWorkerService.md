@@ -153,6 +153,13 @@ The user is expected to provide CPU, memory, and IO limits.
     - does not wait for the command to complete 
     - the goroutine will stop when the process completes or stopped
 
+> [!WARNING]
+> Due to simplification and purpose of this challenge, we've agreed with [Roman Tkachenko](https://github.com/r0mant) 
+> to keep all command's output in memory for all commands. But in case of running long-running command with heavy 
+> output, sooner or later server will crash due to OOM Exception. In real production server we should consider 
+> some process to monitor and _flush_ command output into database/file system/external storage/etc and 
+> monitor memory consumption. And server, by itseft, also should be run in isolated environment (e.g. EC2, VM 
+> or Docker container) to prevent conflicts with other running processes. 
 
 * **func (\*Job) Status() JobStatus** - returns the current status of the job (see [JobStatus](#type-JobStatus))
 
@@ -253,12 +260,12 @@ Following [protobuf](https://protobuf.dev/programming-guides/proto3/) proposed f
   }
   
   message JobRequest {
-    string  uuid = 1;
+    string  id = 1;
   }
   
   // responses
   message JobResponse {
-    string  uuid = 1;
+    string  id = 1;
   }
   
   enum Status {
