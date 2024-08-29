@@ -153,7 +153,7 @@ The user is expected to provide CPU, memory, and IO limits.
     - does not wait for the command to complete 
     - the goroutine will stop when the process completes or stopped
 
-> [!WARNING]
+> [!CAUTION]
 > Due to simplification and purpose of this challenge, we've agreed with [Roman Tkachenko](https://github.com/r0mant) 
 > to keep all command's output in memory for all commands. But in case of running long-running command with heavy 
 > output, sooner or later server will crash due to OOM Exception. In real production server we should consider 
