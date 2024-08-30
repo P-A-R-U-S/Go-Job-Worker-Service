@@ -238,7 +238,7 @@ func stream(client proto.JobWorkerClient, jobId string) error {
 	request := &proto.JobRequest{
 		Id: jobId,
 	}
-	stream, err := client.Stream(ctx, request)
+	response, err := client.Stream(ctx, request)
 	if err != nil {
 		return fmt.Errorf("error creating stream: %v", err)
 	}
@@ -259,7 +259,7 @@ func stream(client proto.JobWorkerClient, jobId string) error {
 	}()
 
 	for {
-		output, err := stream.Recv()
+		output, err := response.Recv()
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				fmt.Print(string(output.GetContent()))
