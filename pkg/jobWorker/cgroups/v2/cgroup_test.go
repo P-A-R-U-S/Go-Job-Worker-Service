@@ -69,6 +69,7 @@ func validateCgroupController(cgroupName, controller, value string) (error error
 
 func Test_CGroup(t *testing.T) {
 	cgroupName := "fakeCGroupName"
+	rootCgroupPath = t.TempDir()
 
 	t.Parallel()
 
