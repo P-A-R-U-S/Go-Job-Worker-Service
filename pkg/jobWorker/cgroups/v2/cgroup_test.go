@@ -77,7 +77,7 @@ func Test_CGroup(t *testing.T) {
 		controller string
 		value      string
 	}{
-		{cgroupName, CPU_WEIGHT_FILE, strconv.FormatFloat(0.5, 'f', -1, 64)},
+		{cgroupName, CPU_WEIGHT_FILE, strconv.Itoa(50)},
 		//{cgroupName, MEMORY_HIGH_FILE, strconv.Itoa(10 * 1024 * 1024 * 1024)},
 		//{cgroupName, IO_WEIGHT_FILE, strconv.Itoa(1_000_000)},
 	}
