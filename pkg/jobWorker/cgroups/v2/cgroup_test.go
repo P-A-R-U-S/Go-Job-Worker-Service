@@ -76,40 +76,27 @@ func validateCgroupController(cgroupName, controller, value string) (error error
 }
 
 func Test_CGroup_CPU_WEIGHT_FILE(t *testing.T) {
-	cgroupName := "fakeCGroupName"
 	t.Parallel()
 
-	testName := fmt.Sprintf("run for controller:%s, cgroup:%s", CPU_WEIGHT_FILE, cgroupName)
-	t.Run(testName, func(t *testing.T) {
-		err := validateCgroupController(cgroupName, CPU_WEIGHT_FILE, "50")
-		if err != nil {
-			t.Errorf("failed: %v", err)
-		}
-	})
-}
-
-func Test_CGroup_MEMORY_HIGH_FILE(t *testing.T) {
 	cgroupName := "fakeCGroupName"
-	t.Parallel()
 
-	testName := fmt.Sprintf("run for controller:%s, cgroup:%s", MEMORY_HIGH_FILE, cgroupName)
-	t.Run(testName, func(t *testing.T) {
-		err := validateCgroupController(cgroupName, MEMORY_HIGH_FILE, strconv.Itoa(2*1024*1024*1024))
-		if err != nil {
-			t.Errorf("failed: %v", err)
-		}
-	})
-}
+	testCases := []struct {
+		cgroup     string
+		controller string
+		value      string
+	}{
+		{cgroupName, CPU_WEIGHT_FILE, strconv.Itoa(50)},
+		{cgroupName, MEMORY_HIGH_FILE, strconv.Itoa(10 * 1024 * 1024 * 1024)},
+		{cgroupName, IO_WEIGHT_FILE, strconv.Itoa(1_000_000)},
+	}
 
-func Test_CGroup_IO_WEIGHT_FILE(t *testing.T) {
-	cgroupName := "fakeCGroupName"
-	t.Parallel()
-
-	testName := fmt.Sprintf("run for controller:%s, cgroup:%s", IO_WEIGHT_FILE, cgroupName)
-	t.Run(testName, func(t *testing.T) {
-		err := validateCgroupController(cgroupName, IO_WEIGHT_FILE, strconv.Itoa(100_000))
-		if err != nil {
-			t.Errorf("failed: %v", err)
-		}
-	})
+	for _, tc := range testCases {
+		testName := fmt.Sprintf("run for controller:%s, cgroup:%s", tc.controller, tc.cgroup)
+		t.Run(testName, func(t *testing.T) {
+			err := validateCgroupController(tc.cgroup, tc.controller, tc.value)
+			if err != nil {
+				t.Errorf("failed: %v", err)
+			}
+		})
+	}
 }
