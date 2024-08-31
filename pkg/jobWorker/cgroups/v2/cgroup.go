@@ -1,6 +1,7 @@
 package v2
 
 import (
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -64,5 +65,7 @@ func groupPath(cgroup string) string {
 // updateController sets the content of the controller interface file for a
 // given resource controller within a CGroup (e.g. "memory.high", etc.)
 func updateController(cgroupName string, file, value string) error {
-	return os.WriteFile(filepath.Join(groupPath(cgroupName), file), []byte(value), 0644)
+	controller := filepath.Join(groupPath(cgroupName), file)
+	log.Panicf("update constoller:%s, value:%s", controller, value)
+	return os.WriteFile(controller, []byte(value), 0644)
 }
