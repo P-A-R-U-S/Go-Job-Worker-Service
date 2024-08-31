@@ -66,6 +66,6 @@ func groupPath(cgroup string) string {
 // given resource controller within a CGroup (e.g. "memory.high", etc.)
 func updateController(cgroupName string, file, value string) error {
 	controller := filepath.Join(groupPath(cgroupName), file)
-	log.Panicf("update constoller:%s, value:%s", controller, value)
+	log.Printf("update constoller:%s, value:%s", controller, value)
 	return os.WriteFile(controller, []byte(value), 0644)
 }
