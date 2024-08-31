@@ -15,7 +15,7 @@ const (
 	IO_WEIGHT_FILE   = "io.weight"
 )
 
-const FILE_MODE = 0644 //0o500
+const FILE_MODE = 0666 //0o500
 
 var (
 	rootCgroupPath = "/sys/fs/cgroup"

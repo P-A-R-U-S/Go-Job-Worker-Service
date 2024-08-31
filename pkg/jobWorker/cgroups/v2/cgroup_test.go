@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // exists returns whether the given file or directory exists
@@ -72,6 +73,10 @@ func validateCgroupController(cgroupName, controller, value string) (error error
 	if exist || err != nil {
 		return fmt.Errorf("expected cgroup folder: %s NOT to exist to represent cgroup:%s", testcgroupPath, cgroupName)
 	}
+
+	// just to let system handle cgroup cleanup
+	time.Sleep(1000)
+
 	return nil
 }
 
