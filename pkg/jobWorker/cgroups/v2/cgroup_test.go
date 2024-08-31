@@ -52,7 +52,11 @@ func validateCgroupController(cgroupName, controller, value string) (error error
 		return fmt.Errorf("could not read cgroup (%s) controller: %v", controller, err)
 	}
 	if string(controllerValue) != value {
-		return fmt.Errorf("controller:(%s) is incorrect: %v", controller, err)
+		return fmt.Errorf("controller:(%s)  is incorrect: %v (expected:%s, actual:%s)",
+			controller,
+			err,
+			string(controllerValue),
+			value)
 	}
 	// TEST DeleteGroup
 	err = DeleteGroup(cgroupName)
