@@ -15,6 +15,8 @@ const (
 	IO_WEIGHT_FILE   = "io.weight"
 )
 
+const FILE_MODE = 0o500
+
 var (
 	rootCgroupPath = "/sys/fs/cgroup"
 )
@@ -67,5 +69,5 @@ func groupPath(cgroup string) string {
 func updateController(cgroupName string, file, value string) error {
 	controller := filepath.Join(groupPath(cgroupName), file)
 	log.Printf("update constoller:%s, value:%s", controller, value)
-	return os.WriteFile(controller, []byte(value), 0644)
+	return os.WriteFile(controller, []byte(value), FILE_MODE)
 }
