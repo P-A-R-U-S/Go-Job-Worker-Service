@@ -12,7 +12,10 @@ import (
 const (
 	CPU_WEIGHT_FILE  = "cpu.weight"
 	MEMORY_HIGH_FILE = "memory.high"
-	IO_WEIGHT_FILE   = "io.weight"
+	// Note: looks like Block IO controller not supported in some Ubuntu Kernels
+	//		 try to enable it: https://docs.kernel.org/admin-guide/cgroup-v1/blkio-controller.html
+	// 		 if you have any issue to set this value
+	IO_WEIGHT_FILE = "io.weight"
 )
 
 const FILE_MODE = 0666 //0o500
