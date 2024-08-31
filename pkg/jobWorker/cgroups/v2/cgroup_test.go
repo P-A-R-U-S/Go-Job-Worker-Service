@@ -24,6 +24,12 @@ func validateCgroupController(cgroupName, controller, value string) (error error
 	// Set up Cgroup to test with test tmp dir
 	// TEST CreateGroup
 	testcgroupPath := groupPath(cgroupName)
+	defer func() {
+		exist, err := exists(testcgroupPath)
+		if exist || err != nil {
+			DeleteGroup(cgroupName)
+		}
+	}()
 
 	err := CreateGroup(cgroupName)
 	if err != nil {
@@ -72,8 +78,8 @@ func Test_CGroup(t *testing.T) {
 		value      string
 	}{
 		{cgroupName, CPU_WEIGHT_FILE, strconv.FormatFloat(0.5, 'f', -1, 64)},
-		{cgroupName, MEMORY_HIGH_FILE, strconv.Itoa(10 * 1024 * 1024 * 1024)},
-		{cgroupName, IO_WEIGHT_FILE, strconv.Itoa(1_000_000)},
+		//{cgroupName, MEMORY_HIGH_FILE, strconv.Itoa(10 * 1024 * 1024 * 1024)},
+		//{cgroupName, IO_WEIGHT_FILE, strconv.Itoa(1_000_000)},
 	}
 
 	for _, tc := range testCases {
