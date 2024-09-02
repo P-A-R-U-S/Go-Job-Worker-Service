@@ -91,7 +91,7 @@ type Job struct {
 }
 
 func (job *Job) String() string {
-	return fmt.Sprintf("id:%b, state:%s with command:%s", job.UUID, job.status.State, job.config.Command)
+	return fmt.Sprintf("id:%s, state:%s with command:%s", job.UUID, job.status.State, job.config.Command)
 }
 
 func NewJob(config *JobConfig) *Job {
@@ -142,10 +142,10 @@ func (job *Job) Start() error {
 		// CLONE_NEWUSER: creates new namespaces to isolate security-related identifiers and attributes, in particular, user IDs and group IDs
 		Cloneflags: syscall.CLONE_NEWNS |
 			syscall.CLONE_NEWIPC |
-			syscall.CLONE_NEWNET, //|
-		//syscall.CLONE_NEWUTS |
-		//syscall.CLONE_NEWPID |
-		//syscall.CLONE_NEWUSER,
+			syscall.CLONE_NEWNET |
+			syscall.CLONE_NEWUTS |
+			syscall.CLONE_NEWPID |
+			syscall.CLONE_NEWUSER,
 		UidMappings: []syscall.SysProcIDMap{
 			{
 				ContainerID: 0,
@@ -190,6 +190,23 @@ func (job *Job) Start() error {
 
 	if err := ns.AddProcess(cgroupName, cmd); err != nil {
 		return fmt.Errorf("not able to add process:%s", err)
+	}
+
+	newrootPath := job.UUID.String()
+
+	if err := ns.MountProc(newrootPath); err != nil {
+		fmt.Printf("Error mounting /proc - %s\n", err)
+		os.Exit(1)
+	}
+
+	if err := ns.PivotRoot(newrootPath); err != nil {
+		fmt.Printf("Error running pivot_root - %s\n", err)
+		os.Exit(1)
+	}
+
+	if err := syscall.Sethostname([]byte("ns-process")); err != nil {
+		fmt.Printf("Error setting hostname - %s\n", err)
+		os.Exit(1)
 	}
 
 	if err := cmd.Start(); err != nil {

@@ -57,10 +57,10 @@ func Test_Job_Prevents_NetworkRequests(t *testing.T) {
 
 	config := JobConfig{
 		Command:          "ping",
-		Arguments:        []string{"-c", "1", "127.0.0.1"},
-		CPU:              0.5,           // half a CPU core
-		IOBytesPerSecond: 100_000_000,   // 100 MB/s
-		MemBytes:         1_000_000_000, // 1 GB
+		Arguments:        []string{"google.com"}, //or localhost as an option {"-c", "1", "127.0.0.1"},
+		CPU:              0.5,                    // half a CPU core
+		IOBytesPerSecond: 100_000_000,            // 100 MB/s
+		MemBytes:         1_000_000_000,          // 1 GB
 	}
 
 	testJob := NewJob(&config)
