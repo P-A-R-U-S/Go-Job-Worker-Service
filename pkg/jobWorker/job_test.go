@@ -104,10 +104,10 @@ func Test_Job_Stopping_Long_Lived_Command(t *testing.T) {
 	t.Parallel()
 
 	config := JobConfig{
-		Command:   "/bin/bash",
-		Arguments: []string{"-c", "'while sleep 1; do echo thinking; done'"},
-		//Command:          "sleep",
-		//Arguments:        []string{"100000"},
+		//Command:   "/bin/bash",
+		//Arguments: []string{"-c", "'while sleep 1; do echo thinking; done'"},
+		Command:          "sleep",
+		Arguments:        []string{"100000"},
 		CPU:              0.5,           // half a CPU core
 		IOBytesPerSecond: 100_000_000,   // 100 MB/s
 		MemBytes:         1_000_000_000, // 1 GB
