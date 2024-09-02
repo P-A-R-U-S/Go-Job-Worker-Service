@@ -1,6 +1,7 @@
 package namespaces
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -27,8 +28,8 @@ var (
 // TODO: In PROD we could check here the cgroup was created correctly,
 //
 //	such as checking cgroup.controllers file for supported controllers
-func CreateGroup(cgroupName string) error {
-	return os.Mkdir(groupPath(cgroupName), 0755)
+func CreateGroup(cgroupName string) (string, error) {
+	return groupPath(cgroupName), os.Mkdir(groupPath(cgroupName), 0755)
 }
 
 // DeleteGroup deletes a cgroup's directory signalling cgroup to delete the group
@@ -55,7 +56,7 @@ func AddProcess(cgroupName string, cmd *exec.Cmd) error {
 // AddResourceControl updates the resource control interface file for a given cgroup using JobOpts.
 func AddResourceControl(cgroupName string, controller string, value string) (err error) {
 	if err = updateController(cgroupName, controller, value); err != nil {
-		return err
+		fmt.Errorf("not able to add resources:%s into cgroup controller:%s", value, controller)
 	}
 	return nil
 }

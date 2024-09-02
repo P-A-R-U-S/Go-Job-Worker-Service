@@ -173,19 +173,16 @@ func (job *Job) Start() error {
 
 	// create a new control group for the process
 	cgroupName := formatedUUID
-	if err := ns.CreateGroup(cgroupName); err != nil {
+	if _, err := ns.CreateGroup(cgroupName); err != nil {
 		log.Printf("failed to create cgroup %s: %v", cgroupName, err)
 		return fmt.Errorf("failed to create cgroup %s: %v", cgroupName, err)
 	}
 
-	var value string
-	value = strconv.Itoa(int(job.config.CPU * 100.0))
-	if err := ns.AddResourceControl(cgroupName, ns.CPU_WEIGHT_FILE, value); err != nil {
-		return fmt.Errorf("not able to add resources:%s into cgroup controller:%s", value, ns.CPU_WEIGHT_FILE)
+	if err := ns.AddResourceControl(cgroupName, ns.CPU_WEIGHT_FILE, strconv.Itoa(int(job.config.CPU*100.0))); err != nil {
+		return err
 	}
-	value = strconv.FormatInt(job.config.MemBytes, 10)
-	if err := ns.AddResourceControl(cgroupName, ns.MEMORY_HIGH_FILE, value); err != nil {
-		return fmt.Errorf("not able to add resources:%s into cgroup controller:%s", value, ns.MEMORY_HIGH_FILE)
+	if err := ns.AddResourceControl(cgroupName, ns.MEMORY_HIGH_FILE, strconv.FormatInt(job.config.MemBytes, 10)); err != nil {
+		return err
 	}
 	//value = strconv.FormatInt(job.config.IOBytesPerSecond, 10)
 	//if err := ns.AddResourceControl(cgroupName, ns.IO_WEIGHT_FILE, strconv.FormatInt(job.config.IOBytesPerSecond, 10)); err != nil {
