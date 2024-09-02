@@ -148,20 +148,20 @@ func (job *Job) Start() error {
 			syscall.CLONE_NEWUTS |
 			syscall.CLONE_NEWPID |
 			syscall.CLONE_NEWUSER,
-		//UidMappings: []syscall.SysProcIDMap{
-		//	{
-		//		ContainerID: 0,
-		//		HostID:      os.Getuid(),
-		//		Size:        1,
-		//	},
-		//},
-		//GidMappings: []syscall.SysProcIDMap{
-		//	{
-		//		ContainerID: 0,
-		//		HostID:      os.Getgid(),
-		//		Size:        1,
-		//	},
-		//},
+		UidMappings: []syscall.SysProcIDMap{
+			{
+				ContainerID: 0,
+				HostID:      os.Getuid(),
+				Size:        1,
+			},
+		},
+		GidMappings: []syscall.SysProcIDMap{
+			{
+				ContainerID: 0,
+				HostID:      os.Getgid(),
+				Size:        1,
+			},
+		},
 		// Also, enables mounting a new proc filesystem so that command such as `ps -ef` only see the processes in the PID namespace
 		Unshareflags: syscall.CLONE_NEWNS,
 		// instruct cmd.Run to use the control group file descriptor, so that Job Command does not
@@ -174,7 +174,6 @@ func (job *Job) Start() error {
 	// create a new control group for the process
 	cgroupName := formatedUUID
 	if _, err := ns.CreateGroup(cgroupName); err != nil {
-		log.Printf("failed to create cgroup %s: %v", cgroupName, err)
 		return fmt.Errorf("failed to create cgroup %s: %v", cgroupName, err)
 	}
 
@@ -205,11 +204,6 @@ func (job *Job) Start() error {
 	//	os.Exit(1)
 	//}
 
-	//if err := syscall.Sethostname([]byte("ns-process")); err != nil {
-	//	fmt.Printf("Error setting hostname - %s\n", err)
-	//	os.Exit(1)
-	//}
-
 	cgroupDir := filepath.Join("/sys/fs/cgroup/", cgroupName)
 	if procsFile, err := os.OpenFile(cgroupDir, os.O_RDONLY, 0); err != nil {
 		return fmt.Errorf("error opening cgroup.procs: %w", err)
@@ -233,13 +227,13 @@ func (job *Job) Start() error {
 		// cmd.Wait would do.
 		// This prevents concurrency issues when a user calls Start(), the command quickly exits (updating the
 		// process state), and the user invokes Status().
-		processState, err := job.cmd.Process.Wait()
+		err := job.cmd.Wait()
 		job.mutex.Lock()
 		defer job.mutex.Unlock()
 
-		job.processState = processState
+		job.processState = job.cmd.ProcessState
 		job.status.ExitCode = job.processState.ExitCode()
-		if err == nil && job.status.State != JOB_STATUS_TERMINATED {
+		if job.status.State != JOB_STATUS_TERMINATED {
 			job.status.State = JOB_STATUS_COMPLETED
 		}
 
@@ -247,8 +241,8 @@ func (job *Job) Start() error {
 			job.status.ExitReason = job.status.ExitReason + fmt.Sprintf("error running command: %s\n", err)
 		}
 
-		if err == nil && !processState.Success() {
-			job.status.ExitReason = job.status.ExitReason + fmt.Sprintf("error running command: %s\n", &exec.ExitError{ProcessState: processState})
+		if err == nil && !job.processState.Success() {
+			job.status.ExitReason = job.status.ExitReason + fmt.Sprintf("error running command: %s\n", &exec.ExitError{ProcessState: job.processState})
 		}
 
 		// close the output, so that any readers of the output know the process has exited and will no longer

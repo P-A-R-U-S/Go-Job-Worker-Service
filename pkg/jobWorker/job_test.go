@@ -83,7 +83,7 @@ func Test_Job_Prevents_NetworkRequests(t *testing.T) {
 	status := testJob.Status()
 
 	if status.State != JOB_STATUS_COMPLETED {
-		t.Errorf("expected job state to be 'completed', got '%s'", status.State)
+		t.Errorf("expected job state to be '%s', got '%s'", JOB_STATUS_COMPLETED, status.State)
 	}
 
 	if status.ExitCode != 1 {
@@ -104,10 +104,10 @@ func Test_Job_Stopping_Long_Lived_Command(t *testing.T) {
 	t.Parallel()
 
 	config := JobConfig{
-		//Command:          "/bin/bash",
-		//Arguments:        []string{"-c", "'while sleep 2; do echo thinking; done'"},
-		Command:          "sleep",
-		Arguments:        []string{"100000"},
+		Command:   "/bin/bash",
+		Arguments: []string{"-c", "'while sleep 1; do echo thinking; done'"},
+		//Command:          "sleep",
+		//Arguments:        []string{"100000"},
 		CPU:              0.5,           // half a CPU core
 		IOBytesPerSecond: 100_000_000,   // 100 MB/s
 		MemBytes:         1_000_000_000, // 1 GB
@@ -125,7 +125,7 @@ func Test_Job_Stopping_Long_Lived_Command(t *testing.T) {
 	status := testJob.Status()
 
 	if status.State != JOB_STATUS_RUNNING {
-		t.Errorf("expected job state to be 'running', got '%s'", status.State)
+		t.Errorf("expected job state to be '%s', got '%s'", JOB_STATUS_RUNNING, status.State)
 	}
 
 	if status.ExitCode != -1 {
@@ -139,7 +139,7 @@ func Test_Job_Stopping_Long_Lived_Command(t *testing.T) {
 	// TODO: find a better workaround
 	// This is a hack to ensure the job-executor's signal handler has time to be set up.
 	// Otherwise, job-executor misses the SIGTERM signal.
-	time.Sleep(1 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	// stop job
 	err = testJob.Stop()
@@ -155,7 +155,7 @@ func Test_Job_Stopping_Long_Lived_Command(t *testing.T) {
 
 	status = testJob.Status()
 	if status.State != JOB_STATUS_TERMINATED {
-		t.Errorf("expected job state to be 'Terminated', got '%s'", status.State)
+		t.Errorf("expected job state to be '%s', got '%s'", JOB_STATUS_TERMINATED, status.State)
 	}
 
 	if status.ExitCode != -1 {
