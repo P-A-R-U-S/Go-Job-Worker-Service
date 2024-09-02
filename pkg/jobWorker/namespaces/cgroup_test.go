@@ -1,4 +1,4 @@
-package v2
+package namespaces
 
 import (
 	"fmt"
@@ -90,6 +90,7 @@ func Test_CGroup_CPU_WEIGHT_FILE(t *testing.T) {
 		controller string
 		value      string
 	}{
+
 		{cgroupName, CPU_WEIGHT_FILE, strconv.Itoa(50)},
 		{cgroupName, MEMORY_HIGH_FILE, strconv.Itoa(10 * 1024 * 1024 * 1024)},
 		//{cgroupName, IO_WEIGHT_FILE, strconv.Itoa(1_000_000)},

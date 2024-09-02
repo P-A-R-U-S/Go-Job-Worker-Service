@@ -1,4 +1,4 @@
-package v2
+package namespaces
 
 import (
 	"log"
@@ -28,7 +28,7 @@ var (
 // TODO: In PROD we could check here the cgroup was created correctly,
 //
 //	such as checking cgroup.controllers file for supported controllers
-func CreateGroup(cgroupName string) (err error) {
+func CreateGroup(cgroupName string) error {
 	return os.Mkdir(groupPath(cgroupName), 0755)
 }
 
@@ -55,8 +55,8 @@ func AddProcess(cgroupName string, cmd *exec.Cmd) error {
 
 // AddResourceControl updates the resource control interface file for a given cgroup using JobOpts. The
 // three currently supported are CPU, memory and IO
-func AddResourceControl(name string, controller string, value string) (err error) {
-	if err = updateController(name, controller, value); err != nil {
+func AddResourceControl(cgroupName string, controller string, value string) (err error) {
+	if err = updateController(cgroupName, controller, value); err != nil {
 		return err
 	}
 	return nil
