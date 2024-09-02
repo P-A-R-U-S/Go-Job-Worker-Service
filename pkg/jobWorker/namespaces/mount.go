@@ -7,30 +7,38 @@ import (
 	"syscall"
 )
 
-func PivotRoot(newroot string) error {
-	putold := filepath.Join(newroot, "/.pivot_root")
+func PivotRoot(rootfs string) error {
+	putold := filepath.Join(rootfs, "/.pivot_root")
 
-	// bind mount newroot to itself - this is a slight hack needed to satisfy the
-	// pivot_root requirement that newroot and putold must not be on the same
+	// bind mount rootfs to itself - this is a slight hack needed to satisfy the
+	// pivot_root requirement that rootfs and putold must not be on the same
 	// filesystem as the current root
-	if err := syscall.Mount(newroot, newroot, "", syscall.MS_BIND|syscall.MS_REC, ""); err != nil {
+	if err := syscall.Mount(rootfs, rootfs, "", syscall.MS_BIND|syscall.MS_REC, ""); err != nil {
 		return fmt.Errorf("error (syscall.Mount) %s", err)
 	}
 
-	// create putold directory
-	if err := os.MkdirAll(putold, 0700); err != nil {
+	// create rootfs/.pivot_root as path for old_root
+	pivotDir := filepath.Join(rootfs, ".pivot_root")
+	if err := os.Mkdir(pivotDir, 0777); err != nil {
 		return fmt.Errorf("error (syscall.MkdirAll) %s", err)
 	}
 
 	// call pivot_root
-	if err := syscall.PivotRoot(newroot, putold); err != nil {
-		return fmt.Errorf("error (syscall.PivotRoot(%s, %s)) - %s", newroot, putold, err)
+	if err := syscall.PivotRoot(rootfs, putold); err != nil {
+		return fmt.Errorf("error (syscall.PivotRoot(%s, %s)) - %s", rootfs, putold, err)
 	}
 
 	// ensure current working directory is set to new root
 	if err := os.Chdir("/"); err != nil {
 		return fmt.Errorf("error (syscall.Chdir) %s", err)
 
+	}
+	// path to pivot root now changed, update
+	pivotDir = filepath.Join("/", ".pivot_root")
+	// umount rootfs/.pivot_root(which is now /.pivot_root) with all submounts
+	// now we have only mounts that we mounted ourselves in `mount`
+	if err := syscall.Unmount(pivotDir, syscall.MNT_DETACH); err != nil {
+		return fmt.Errorf("unmount pivot_root dir %v", err)
 	}
 
 	// umount putold, which now lives at /.pivot_root
@@ -47,9 +55,9 @@ func PivotRoot(newroot string) error {
 	return nil
 }
 
-func MountProc(newroot string) error {
+func MountProc(rootfs string) error {
 	source := "proc"
-	target := filepath.Join(newroot, "/proc")
+	target := filepath.Join(rootfs, "/proc")
 	fstype := "proc"
 	flags := 0
 	data := ""
