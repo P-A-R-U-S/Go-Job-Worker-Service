@@ -24,7 +24,7 @@ func PivotRoot(newroot string) error {
 
 	// call pivot_root
 	if err := syscall.PivotRoot(newroot, putold); err != nil {
-		return fmt.Errorf("error (syscall.PivotRoot) %s", err)
+		return fmt.Errorf("error (syscall.PivotRoot(%s, %s)) - %s", newroot, putold, err)
 	}
 
 	// ensure current working directory is set to new root
