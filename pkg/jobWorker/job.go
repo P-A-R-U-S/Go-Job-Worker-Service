@@ -142,10 +142,10 @@ func (job *Job) Start() error {
 		// CLONE_NEWUSER: creates new namespaces to isolate security-related identifiers and attributes, in particular, user IDs and group IDs
 		Cloneflags: syscall.CLONE_NEWNS |
 			syscall.CLONE_NEWIPC |
-			syscall.CLONE_NEWNET |
-			syscall.CLONE_NEWUTS |
-			syscall.CLONE_NEWPID |
-			syscall.CLONE_NEWUSER,
+			syscall.CLONE_NEWNET, //|
+		//syscall.CLONE_NEWUTS |
+		//syscall.CLONE_NEWPID |
+		//syscall.CLONE_NEWUSER,
 		UidMappings: []syscall.SysProcIDMap{
 			{
 				ContainerID: 0,
