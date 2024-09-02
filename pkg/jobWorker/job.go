@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -211,6 +212,14 @@ func (job *Job) Start() error {
 	//	fmt.Printf("Error setting hostname - %s\n", err)
 	//	os.Exit(1)
 	//}
+
+	cgroupDir := filepath.Join("/sys/fs/cgroup/", cgroupName)
+	procsFile, err := os.OpenFile(cgroupDir, os.O_RDONLY, 0)
+	if err != nil {
+		return fmt.Errorf("error opening cgroup.procs: %w", err)
+	}
+	// provide the file descriptor to cmd.Run so that it can add the new PID to the control group
+	cmd.SysProcAttr.CgroupFD = int(procsFile.Fd())
 
 	log.Printf("starting job:%s", job)
 	if err := cmd.Start(); err != nil {
