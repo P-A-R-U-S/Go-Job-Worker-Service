@@ -2,7 +2,6 @@ package jobWorker
 
 import (
 	"io"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -167,11 +166,6 @@ func Test_Job_Stopping_Long_Lived_Command(t *testing.T) {
 func Test_Job_IOLimits(t *testing.T) {
 	t.Parallel()
 
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("error getting current working directory: %v", err)
-	}
-
 	config := JobConfig{
 		Command:          "dd",
 		Arguments:        []string{"if=/dev/zero", "of=/tmp/file1", "bs=64M", "count=1", "oflag=direct"},
@@ -183,7 +177,7 @@ func Test_Job_IOLimits(t *testing.T) {
 	testJob := NewJob(&config)
 
 	// start the job
-	err = testJob.Start()
+	err := testJob.Start()
 	if err != nil {
 		t.Fatalf("error starting job: %v", err)
 	}

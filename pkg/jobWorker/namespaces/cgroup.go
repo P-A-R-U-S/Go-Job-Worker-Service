@@ -56,7 +56,7 @@ func AddProcess(cgroupName string, cmd *exec.Cmd) error {
 // AddResourceControl updates the resource control interface file for a given cgroup using JobOpts.
 func AddResourceControl(cgroupName string, controller string, value string) (err error) {
 	if err = updateController(cgroupName, controller, value); err != nil {
-		fmt.Errorf("not able to add resources:%s into cgroup controller:%s", value, controller)
+		return fmt.Errorf("not able to add resources:%s into cgroup controller:%s", value, controller)
 	}
 	return nil
 }
