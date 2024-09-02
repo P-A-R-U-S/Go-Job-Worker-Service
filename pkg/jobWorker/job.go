@@ -239,7 +239,9 @@ func (job *Job) Start() error {
 
 		job.processState = processState
 		job.status.ExitCode = job.processState.ExitCode()
-		job.status.State = JOB_STATUS_COMPLETED
+		if err == nil && job.status.State != JOB_STATUS_TERMINATED {
+			job.status.State = JOB_STATUS_COMPLETED
+		}
 
 		if err != nil {
 			job.status.ExitReason = job.status.ExitReason + fmt.Sprintf("error running command: %s\n", err)
