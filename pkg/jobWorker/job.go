@@ -11,17 +11,17 @@ import (
 	"strconv"
 	"sync"
 	"syscall"
+	"time"
 )
 
 var (
 	ErrJobAlreadyStarted = errors.New("job already started")
 	ErrJobNotStarted     = errors.New("job not started")
 
-	ErrInvalidRootPhysicalDevice = errors.New("RootPhysicalDevice must be provided")
-	ErrInvalidCommand            = errors.New("command must be provided")
-	ErrInvalidCPU                = errors.New("CPU must be greater than 0")
-	ErrInvalidIOBytesPerSecond   = errors.New("IOBytesPerSecond must be greater than 0")
-	ErrInvalidMemBytes           = errors.New("MemBytes must be greater than 0")
+	ErrInvalidCommand          = errors.New("command must be provided")
+	ErrInvalidCPU              = errors.New("CPU must be greater than 0")
+	ErrInvalidIOBytesPerSecond = errors.New("IOBytesPerSecond must be greater than 0")
+	ErrInvalidMemBytes         = errors.New("MemBytes must be greater than 0")
 )
 
 type State string
@@ -60,7 +60,6 @@ type JobConfig struct {
 }
 
 func (jobConfig *JobConfig) isValid() error {
-
 	if jobConfig.Command == "" {
 		return ErrInvalidCommand
 	}
@@ -84,11 +83,11 @@ type Job struct {
 	UUID   uuid.UUID
 	cmd    *exec.Cmd
 	mutex  sync.Mutex
-	output *commandOutput
+	output *CommandOutput
 	config *JobConfig
 	status *JobStatus
 	// processState holds information about the process once it completes
-	// processState is nil until the job has completed running
+	// 				and has `nil` until the job has completed running
 	processState *os.ProcessState
 }
 
@@ -120,7 +119,9 @@ func (job *Job) Start() error {
 	defer job.mutex.Unlock()
 
 	// validate configuration
+	log.Printf("validate job:%s", job)
 	if err := job.config.isValid(); err != nil {
+		log.Printf("validate job error:%v", err)
 		return err
 	}
 
@@ -134,9 +135,12 @@ func (job *Job) Start() error {
 	cmd.Stderr = job.output
 	cmd.Stdout = job.output
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		// CLONE_NEWPID: creates a new PID namespace preventing the process from seeing/killing host processes
-		// CLONE_NEWNET: creates a new network namespace preventing the process from accessing the internet or local network
-		// CLONE_NEWNS: creates a new mount namespace preventing the process from impacting host mounts
+		// CLONE_NEWPID:  creates a new PID namespace preventing the process from seeing/killing host processes
+		// CLONE_NEWNET:  creates a new network namespace preventing the process from accessing the internet or local network
+		// CLONE_NEWNS:   creates a new mount namespace preventing the process from impacting host mounts
+		// CLONE_NEWUTS:  creates a new UTS namespaces provide isolation between two system identifiers: the hostname and the NIS domain name
+		// CLONE_NEWPID:  crates new PID namespaces isolate the process ID number space, meaning that processes in different PID namespaces can have the same PID
+		// CLONE_NEWUSER: creates new namespaces to isolate security-related identifiers and attributes, in particular, user IDs and group IDs
 		Cloneflags: syscall.CLONE_NEWNS |
 			syscall.CLONE_NEWIPC |
 			syscall.CLONE_NEWNET |
@@ -195,6 +199,9 @@ func (job *Job) Start() error {
 		defer job.mutex.Unlock()
 
 		job.processState = processState
+		job.status.ExitCode = job.processState.ExitCode()
+		job.status.State = JOB_STATUS_COMPLETED
+
 		if err != nil {
 			job.status.ExitReason = job.status.ExitReason + fmt.Sprintf("error running command: %s\n", err)
 		}
@@ -218,14 +225,56 @@ func (job *Job) Start() error {
 	return nil
 }
 
-func (job *Job) Status() JobStatus {
-	return *job.status
+// Status returns the current Status of the Job.
+func (job *Job) Status() *JobStatus {
+	job.mutex.Lock()
+	defer job.mutex.Unlock()
+	log.Printf("get job status:%s", job)
+	return job.status
 }
 
-func (job *Job) Stream() OutputReadCloser {
-	return OutputReadCloser{}
+// Stream returns an OutputReadCloser that streams the combined stdout and stderr of the Job.
+func (job *Job) Stream() *OutputReadCloser {
+	log.Printf("get job stream:%s", job)
+	return NewOutputReadCloser(job.output)
 }
 
 func (job *Job) Stop() error {
+	job.mutex.Lock()
+	defer job.mutex.Unlock()
+
+	log.Printf("stop job :%s", job)
+	if job.cmd == nil {
+		return ErrJobNotStarted
+	}
+
+	if err := job.cmd.Process.Signal(syscall.SIGTERM); err != nil {
+		return fmt.Errorf("error sending SIGTERM: %w", err)
+	}
+
+	cmdWait := make(chan error, 1)
+	timer := time.NewTimer(10 * time.Second)
+	// stop timer in case process exits before 10 seconds
+	// it's safe to stop timer even if stopped already
+	defer timer.Stop()
+
+	go func() {
+		_, err := job.cmd.Process.Wait()
+		cmdWait <- err
+	}()
+
+	select {
+	case <-cmdWait:
+		// command exited before timer expired, so nothing to do
+	case <-timer.C:
+		// send SIGKILL if process is still running after timer expires
+		log.Printf("send SIGKILL to job:%s", job)
+		if err := job.cmd.Process.Signal(syscall.SIGKILL); err != nil {
+			return fmt.Errorf("error sending SIGKILL: %w", err)
+		}
+	}
+
+	job.status.State = JOB_STATUS_TERMINATED
+
 	return nil
 }

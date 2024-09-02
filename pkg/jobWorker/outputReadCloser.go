@@ -5,19 +5,19 @@ import (
 )
 
 var (
-	ErrOutputMissing = errors.New("OutputReader's commandOutput is nil")
+	ErrOutputMissing = errors.New("OutputReader's CommandOutput is nil")
 )
 
 // OutputReadCloser implements io.ReadCloser interface to read from the provided CommandOutput
 //
 //	and close output if it is no longer need it .
 type OutputReadCloser struct {
-	output *commandOutput
+	output *CommandOutput
 	// readIndex is the index of the next byte to read from the Output
 	readIndex int64
 }
 
-func NewOutputReadCloser(output *commandOutput) *OutputReadCloser {
+func NewOutputReadCloser(output *CommandOutput) *OutputReadCloser {
 	return &OutputReadCloser{output: output, readIndex: 0}
 }
 

@@ -53,8 +53,7 @@ func AddProcess(cgroupName string, cmd *exec.Cmd) error {
 	return nil
 }
 
-// AddResourceControl updates the resource control interface file for a given cgroup using JobOpts. The
-// three currently supported are CPU, memory and IO
+// AddResourceControl updates the resource control interface file for a given cgroup using JobOpts.
 func AddResourceControl(cgroupName string, controller string, value string) (err error) {
 	if err = updateController(cgroupName, controller, value); err != nil {
 		return err

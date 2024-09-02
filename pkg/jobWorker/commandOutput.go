@@ -19,7 +19,7 @@ var (
 	ErrOffsetOutsideContentBounds = errors.New("offset is greater than the length of the content")
 )
 
-type commandOutput struct {
+type CommandOutput struct {
 	// content store the written data
 	content []byte
 	// isClosed is true once Close() is called to prevent further writes
@@ -31,15 +31,15 @@ type commandOutput struct {
 }
 
 // NewCommandOutput returns a new instance of CommandOutput.
-func NewCommandOutput() *commandOutput {
-	output := commandOutput{}
+func NewCommandOutput() *CommandOutput {
+	output := CommandOutput{}
 	output.waitCondition = sync.NewCond(&output.mutex)
 
 	return &output
 }
 
 // Write appends newContent to the content of the Output.
-func (output *commandOutput) Write(newContent []byte) (int, error) {
+func (output *CommandOutput) Write(newContent []byte) (int, error) {
 	output.mutex.Lock()
 	defer output.mutex.Unlock()
 
@@ -57,7 +57,7 @@ func (output *commandOutput) Write(newContent []byte) (int, error) {
 // ReadPartial copies content from the CommandOutput to buffer starting at the given offset
 //
 //	and not block if less bytes are available than requested.
-func (output *commandOutput) ReadPartial(buffer []byte, off int64) (int, error) {
+func (output *CommandOutput) ReadPartial(buffer []byte, off int64) (int, error) {
 	output.mutex.RLock()
 	defer output.mutex.RUnlock()
 
@@ -77,7 +77,7 @@ func (output *commandOutput) ReadPartial(buffer []byte, off int64) (int, error) 
 }
 
 // Wait blocks until new content is written to the CommandOutput or the CommandOutput is closed.
-func (output *commandOutput) Wait(nextByteIndex int64) {
+func (output *CommandOutput) Wait(nextByteIndex int64) {
 	output.mutex.RLock()
 
 	closed := output.isClosed
@@ -98,7 +98,7 @@ func (output *commandOutput) Wait(nextByteIndex int64) {
 }
 
 // Close closes the CommandOutput preventing any further writes.
-func (output *commandOutput) Close() error {
+func (output *CommandOutput) Close() error {
 	output.mutex.Lock()
 	defer output.mutex.Unlock()
 
