@@ -188,7 +188,9 @@ func (job *Job) Start() error {
 		return fmt.Errorf("not able to add resources:%s into cgroup controller:%s", value, ns.IO_WEIGHT_FILE)
 	}
 
-	ns.AddProcess(cgroupName, cmd)
+	if err := ns.AddProcess(cgroupName, cmd); err != nil {
+		return fmt.Errorf("not able to add process:%s", err)
+	}
 
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("error starting command: %w", err)
