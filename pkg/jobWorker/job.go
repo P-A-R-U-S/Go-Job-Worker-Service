@@ -207,11 +207,12 @@ func (job *Job) Start() error {
 	//	os.Exit(1)
 	//}
 
-	if err := syscall.Sethostname([]byte("ns-process")); err != nil {
-		fmt.Printf("Error setting hostname - %s\n", err)
-		os.Exit(1)
-	}
+	//if err := syscall.Sethostname([]byte("ns-process")); err != nil {
+	//	fmt.Printf("Error setting hostname - %s\n", err)
+	//	os.Exit(1)
+	//}
 
+	log.Printf("starting job:%s", job)
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("error starting command: %w", err)
 	}
