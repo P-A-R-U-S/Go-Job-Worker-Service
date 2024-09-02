@@ -1,10 +1,13 @@
 package jobWorker
 
 import (
+	"bytes"
 	"io"
+	"log"
 	"strings"
 	"testing"
 	"time"
+	"unsafe"
 )
 
 func Test_Job_Running(t *testing.T) {
@@ -143,8 +146,11 @@ func Test_Job_Stopping_Long_Lived_Command(t *testing.T) {
 		t.Errorf("error stopping job: %v", err)
 	}
 
+	var output []byte
 	// wait for job to completely stop
-	_, err = io.ReadAll(testJob.Stream())
+	output, err = io.ReadAll(testJob.Stream())
+
+	log.Print("OUTPUT: ", string(output))
 	if err != nil {
 		t.Errorf("error reading output: %v", err)
 	}
@@ -193,4 +199,11 @@ func Test_Job_IOLimits(t *testing.T) {
 	if !strings.Contains(string(output), expectedIOLimitOutput) {
 		t.Errorf("expected output to contain %q, got %q", expectedIOLimitOutput, output)
 	}
+}
+
+func getJobOutput(testJob *Job) string {
+	buf := new(bytes.Buffer)
+	buf.ReadFrom(testJob.Stream())
+	b := buf.Bytes()
+	return *(*string)(unsafe.Pointer(&b))
 }
