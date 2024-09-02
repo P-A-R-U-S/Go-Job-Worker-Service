@@ -106,7 +106,7 @@ func Test_Job_Stopping_Long_Lived_Command(t *testing.T) {
 
 	config := JobConfig{
 		Command:          "/bin/bash",
-		Arguments:        []string{"-c", "while sleep 2; do echo thinking; done"},
+		Arguments:        []string{"-c", "'while sleep 2; do echo thinking; done'"},
 		CPU:              0.5,           // half a CPU core
 		IOBytesPerSecond: 100_000_000,   // 100 MB/s
 		MemBytes:         1_000_000_000, // 1 GB
