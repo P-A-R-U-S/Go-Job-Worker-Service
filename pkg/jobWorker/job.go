@@ -102,7 +102,8 @@ func NewJob(config *JobConfig) *Job {
 		UUID:   uuid.New(),
 		config: config,
 		status: &JobStatus{
-			State: JOB_STATUS_NOT_STARTED,
+			State:    JOB_STATUS_NOT_STARTED,
+			ExitCode: -1, // TODO: Probably we need to set default exist code e.g. 999999 to avoid confusions.
 		},
 		output: output,
 	}
@@ -227,11 +228,11 @@ func (job *Job) Start() error {
 		// cmd.Wait would do.
 		// This prevents concurrency issues when a user calls Start(), the command quickly exits (updating the
 		// process state), and the user invokes Status().
-		err := job.cmd.Wait()
+		processState, err := job.cmd.Process.Wait()
 		job.mutex.Lock()
 		defer job.mutex.Unlock()
 
-		job.processState = job.cmd.ProcessState
+		job.processState = processState
 		job.status.ExitCode = job.processState.ExitCode()
 		if job.status.State != JOB_STATUS_TERMINATED {
 			job.status.State = JOB_STATUS_COMPLETED
