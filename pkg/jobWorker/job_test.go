@@ -32,19 +32,15 @@ func Test_Job_Running(t *testing.T) {
 
 	status := testJob.Status()
 
-	if status.State != "completed" {
-		t.Errorf("expected job state to be 'completed', got '%s'", status.State)
+	if status.State != JOB_STATUS_COMPLETED {
+		t.Errorf("expected job state to be 'Completed', got '%s'", status.State)
 	}
 
 	if status.ExitCode != 0 {
 		t.Errorf("expected job exit code to be 0, got %d", status.ExitCode)
 	}
 
-	if status.State != JOB_STATUS_COMPLETED {
-		t.Error("expected job to have exited")
-	}
-
-	if len(status.ExitReason) == 0 {
+	if len(status.ExitReason) != 0 {
 		t.Errorf("expected job exit reason to be empty, got %v", status.ExitReason)
 	}
 

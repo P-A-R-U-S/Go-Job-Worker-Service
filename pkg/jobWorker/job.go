@@ -98,14 +98,14 @@ func (job *Job) String() string {
 func NewJob(config *JobConfig) *Job {
 	output := NewCommandOutput()
 	job := &Job{
-		UUID:   uuid.UUID{},
+		UUID:   uuid.New(),
 		config: config,
 		status: &JobStatus{
 			State: JOB_STATUS_NOT_STARTED,
 		},
 		output: output,
 	}
-	log.Printf("crated job:%s", job)
+	log.Printf("creted job:%s", job)
 	return job
 }
 
