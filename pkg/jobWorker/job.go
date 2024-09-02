@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -167,8 +168,10 @@ func (job *Job) Start() error {
 		UseCgroupFD: true,
 	}
 
+	formatedUUID := strings.Replace(job.UUID.String(), "-", "", -1)
+
 	// create a new control group for the process
-	cgroupName := job.UUID.String()
+	cgroupName := formatedUUID
 	if err := ns.CreateGroup(cgroupName); err != nil {
 		log.Printf("failed to create cgroup %s: %v", cgroupName, err)
 		return fmt.Errorf("failed to create cgroup %s: %v", cgroupName, err)
@@ -192,7 +195,7 @@ func (job *Job) Start() error {
 		return fmt.Errorf("not able to add process:%s", err)
 	}
 
-	newrootPath := job.UUID.String()
+	newrootPath := formatedUUID
 
 	if err := ns.MountProc(newrootPath); err != nil {
 		fmt.Printf("Error mounting /proc - %s\n", err)
