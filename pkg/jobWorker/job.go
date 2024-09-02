@@ -183,10 +183,10 @@ func (job *Job) Start() error {
 	if err := ns.AddResourceControl(cgroupName, ns.MEMORY_HIGH_FILE, value); err != nil {
 		return fmt.Errorf("not able to add resources:%s into cgroup controller:%s", value, ns.MEMORY_HIGH_FILE)
 	}
-	value = strconv.FormatInt(job.config.IOBytesPerSecond, 10)
-	if err := ns.AddResourceControl(cgroupName, ns.IO_WEIGHT_FILE, strconv.FormatInt(job.config.IOBytesPerSecond, 10)); err != nil {
-		return fmt.Errorf("not able to add resources:%s into cgroup controller:%s", value, ns.IO_WEIGHT_FILE)
-	}
+	//value = strconv.FormatInt(job.config.IOBytesPerSecond, 10)
+	//if err := ns.AddResourceControl(cgroupName, ns.IO_WEIGHT_FILE, strconv.FormatInt(job.config.IOBytesPerSecond, 10)); err != nil {
+	//	return fmt.Errorf("not able to add resources:%s into cgroup controller:%s", value, ns.IO_WEIGHT_FILE)
+	//}
 
 	if err := ns.AddProcess(cgroupName, cmd); err != nil {
 		return fmt.Errorf("not able to add process:%s", err)
