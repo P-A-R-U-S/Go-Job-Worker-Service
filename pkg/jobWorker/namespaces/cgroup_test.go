@@ -2,6 +2,7 @@ package namespaces
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -31,7 +32,8 @@ func validateCgroupController(cgroupName, controller, value string) (error error
 	defer func() {
 		exist, err := exists(testcgroupPath)
 		if exist || err != nil {
-			DeleteGroup(cgroupName)
+			err := DeleteGroup(cgroupName)
+			log.Print("error deleting cgroup ", err)
 		}
 	}()
 
