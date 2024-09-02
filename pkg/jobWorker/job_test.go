@@ -2,6 +2,7 @@ package jobWorker
 
 import (
 	"io"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -103,7 +104,7 @@ func Test_Job_Stopping_Long_Lived_Command(t *testing.T) {
 
 	config := JobConfig{
 		Command:          "/bin/bash",
-		Arguments:        []string{"c-", "'while sleep 2; do echo thinking; done'"},
+		Arguments:        []string{"c-", "while sleep 2; do echo thinking; done"},
 		CPU:              0.5,           // half a CPU core
 		IOBytesPerSecond: 100_000_000,   // 100 MB/s
 		MemBytes:         1_000_000_000, // 1 GB
@@ -151,7 +152,7 @@ func Test_Job_Stopping_Long_Lived_Command(t *testing.T) {
 
 	status = testJob.Status()
 	if status.State != JOB_STATUS_TERMINATED {
-		t.Errorf("expected job state to be 'terminated', got '%s'", status.State)
+		t.Errorf("expected job state to be 'Terminated', got '%s'", status.State)
 	}
 
 	if status.ExitCode != -1 {
@@ -160,5 +161,42 @@ func Test_Job_Stopping_Long_Lived_Command(t *testing.T) {
 
 	if len(status.ExitReason) > 0 {
 		t.Errorf("expected job exit reason to be nil with no errors while waiting for command to finish, but got %v", status.ExitReason)
+	}
+}
+
+func Test_Job_IOLimits(t *testing.T) {
+	t.Parallel()
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("error getting current working directory: %v", err)
+	}
+
+	config := JobConfig{
+		Command:          "dd",
+		Arguments:        []string{"if=/dev/zero", "of=/tmp/file1", "bs=64M", "count=1", "oflag=direct"},
+		CPU:              0.5,           // half a CPU core
+		IOBytesPerSecond: 10_000_000,    // 10 MB/s
+		MemBytes:         1_000_000_000, // 1 GB
+	}
+
+	testJob := NewJob(&config)
+
+	// start the job
+	err = testJob.Start()
+	if err != nil {
+		t.Fatalf("error starting job: %v", err)
+	}
+
+	// get job output
+	output, err := io.ReadAll(testJob.Stream())
+	if err != nil {
+		t.Errorf("error reading output: %v", err)
+	}
+
+	// TODO: this test hasn't appeared flaky yet, but there's probably a better way to validate the output/IO limit
+	expectedIOLimitOutput := "10.0 MB/s"
+	if !strings.Contains(string(output), expectedIOLimitOutput) {
+		t.Errorf("expected output to contain %q, got %q", expectedIOLimitOutput, output)
 	}
 }
