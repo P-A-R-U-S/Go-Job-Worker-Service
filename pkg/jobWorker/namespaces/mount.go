@@ -24,7 +24,7 @@ func PivotRoot(rootfs string) error {
 	}
 
 	// call pivot_root
-	if err := syscall.PivotRoot(rootfs, putold); err != nil {
+	if err := syscall.PivotRoot(rootfs, pivotDir); err != nil {
 		return fmt.Errorf("error (syscall.PivotRoot(%s, %s)) - %s", rootfs, putold, err)
 	}
 

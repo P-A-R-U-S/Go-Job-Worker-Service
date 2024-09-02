@@ -195,17 +195,17 @@ func (job *Job) Start() error {
 		return fmt.Errorf("not able to add process:%s", err)
 	}
 
-	newrootPath := formatedUUID
+	rootfs := formatedUUID
 
-	if err := ns.MountProc(newrootPath); err != nil {
+	if err := ns.MountProc(rootfs); err != nil {
 		fmt.Printf("Error mounting /proc - %s\n", err)
 		os.Exit(1)
 	}
 
-	if err := ns.PivotRoot(newrootPath); err != nil {
-		fmt.Printf("Error running pivot_root - %s\n", err)
-		os.Exit(1)
-	}
+	//if err := ns.PivotRoot(newrootPath); err != nil {
+	//	fmt.Printf("Error running pivot_root - %s\n", err)
+	//	os.Exit(1)
+	//}
 
 	if err := syscall.Sethostname([]byte("ns-process")); err != nil {
 		fmt.Printf("Error setting hostname - %s\n", err)
