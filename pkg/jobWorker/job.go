@@ -211,12 +211,12 @@ func (job *Job) Start() error {
 	//}
 
 	cgroupDir := filepath.Join("/sys/fs/cgroup/", cgroupName)
-	procsFile, err := os.OpenFile(cgroupDir, os.O_RDONLY, 0)
-	if err != nil {
+	if procsFile, err := os.OpenFile(cgroupDir, os.O_RDONLY, 0); err != nil {
 		return fmt.Errorf("error opening cgroup.procs: %w", err)
+	} else {
+		// provide the file descriptor to cmd.Run so that it can add the new PID to the control group
+		cmd.SysProcAttr.CgroupFD = int(procsFile.Fd())
 	}
-	// provide the file descriptor to cmd.Run so that it can add the new PID to the control group
-	cmd.SysProcAttr.CgroupFD = int(procsFile.Fd())
 
 	log.Printf("starting job:%s", job)
 	if err := cmd.Start(); err != nil {

@@ -3,7 +3,6 @@ package jobWorker
 import (
 	"bytes"
 	"io"
-	"log"
 	"strings"
 	"testing"
 	"time"
@@ -148,11 +147,8 @@ func Test_Job_Stopping_Long_Lived_Command(t *testing.T) {
 		t.Errorf("error stopping job: %v", err)
 	}
 
-	var output []byte
 	// wait for job to completely stop
-	output, err = io.ReadAll(testJob.Stream())
-
-	log.Print("OUTPUT: ", string(output))
+	_, err = io.ReadAll(testJob.Stream())
 	if err != nil {
 		t.Errorf("error reading output: %v", err)
 	}
@@ -167,7 +163,7 @@ func Test_Job_Stopping_Long_Lived_Command(t *testing.T) {
 	}
 
 	if len(status.ExitReason) > 0 {
-		t.Errorf("expected job exit reason to be empry with no errors while waiting for command to finish, but got %v", status.ExitReason)
+		t.Errorf("expected job exit reason to be empty with no errors while waiting for command to finish, but got %v", status.ExitReason)
 	}
 }
 
