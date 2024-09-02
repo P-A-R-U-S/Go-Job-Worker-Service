@@ -93,7 +93,7 @@ type Job struct {
 }
 
 func (job *Job) String() string {
-	return fmt.Sprintf("id:%s, state:%s with command:%s", job.UUID, job.status.State, job.config.Command)
+	return fmt.Sprintf("id:%s, state:%s with command:%s %s", job.UUID, job.status.State, job.config.Command, strings.Join(job.config.Arguments, " "))
 }
 
 func NewJob(config *JobConfig) *Job {
