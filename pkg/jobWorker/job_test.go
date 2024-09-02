@@ -162,8 +162,9 @@ func Test_Job_Stopping_Long_Lived_Command(t *testing.T) {
 		t.Errorf("expected job exit code to be -1, got %d", status.ExitCode)
 	}
 
-	if len(status.ExitReason) > 0 {
-		t.Errorf("expected job exit reason to be empty with no errors while waiting for command to finish, but got %v", status.ExitReason)
+	if len(status.ExitReason) == 0 {
+		// TODO: In Ubuntu exit reason signal:terminated, but can be different in other linux distro's. Need to research.
+		t.Errorf("expected job exit reason not to be empty, because command had been terminated")
 	}
 }
 
