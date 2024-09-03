@@ -41,7 +41,6 @@ func exists(path string) (bool, error) {
 
 func Test_CGroup(t *testing.T) {
 	t.Parallel()
-
 	CPU := 0.5                            // half a CPU core
 	IOBytesPerSecond := int64(10_000_000) // 10 MB/s
 	MemBytes := int64(1_000_000_000)      // 1 GB
@@ -51,6 +50,13 @@ func Test_CGroup(t *testing.T) {
 	// Set up Cgroup to test with test tmp dir
 	// TEST CreateGroup
 	cgroupDir := GetCGroupPath(cgroupName)
+
+	defer func() {
+		exist, err := exists(cgroupDir)
+		if exist && err == nil {
+			_ = CleanupCGroup(cgroupDir)
+		}
+	}()
 
 	// defer to be sure test cgroup had been removed
 
