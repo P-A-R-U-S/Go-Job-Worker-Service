@@ -12,11 +12,12 @@ func Test_Job_Running(t *testing.T) {
 	t.Parallel()
 
 	config := JobConfig{
-		Command:          "echo",
-		Arguments:        []string{"Hello", " Teleport !!!"},
-		CPU:              0.5,           // half a CPU core
-		IOBytesPerSecond: 100_000_000,   // 100 MB/s
-		MemBytes:         1_000_000_000, // 1 GB
+		RootPhysicalDevice: getMajMinForRootDevice(t),
+		Command:            "echo",
+		Arguments:          []string{"Hello", " Teleport !!!"},
+		CPU:                0.5,           // half a CPU core
+		IOBytesPerSecond:   100_000_000,   // 100 MB/s
+		MemBytes:           1_000_000_000, // 1 GB
 	}
 
 	testJob := NewJob(&config)
@@ -59,11 +60,12 @@ func Test_Job_Prevents_NetworkRequests(t *testing.T) {
 	t.Skip()
 
 	config := JobConfig{
-		Command:          "ping",
-		Arguments:        []string{"-c", "1", "google.com"}, //or localhost as an option {"-c", "1", "127.0.0.1"},
-		CPU:              0.5,                               // half a CPU core
-		IOBytesPerSecond: 100_000_000,                       // 100 MB/s
-		MemBytes:         1_000_000_000,                     // 1 GB
+		RootPhysicalDevice: getMajMinForRootDevice(t),
+		Command:            "ping",
+		Arguments:          []string{"-c", "1", "google.com"}, //or localhost as an option {"-c", "1", "127.0.0.1"},
+		CPU:                0.5,                               // half a CPU core
+		IOBytesPerSecond:   100_000_000,                       // 100 MB/s
+		MemBytes:           1_000_000_000,                     // 1 GB
 	}
 
 	testJob := NewJob(&config)
@@ -171,11 +173,12 @@ func Test_Job_IOLimits(t *testing.T) {
 	t.Parallel()
 
 	config := JobConfig{
-		Command:          "dd",
-		Arguments:        []string{"if=/dev/zero", "of=/tmp/file1", "bs=64M", "count=1", "oflag=direct"},
-		CPU:              0.5,           // half a CPU core
-		IOBytesPerSecond: 10_000_000,    // 10 MB/s
-		MemBytes:         1_000_000_000, // 1 GB
+		RootPhysicalDevice: getMajMinForRootDevice(t),
+		Command:            "dd",
+		Arguments:          []string{"if=/dev/zero", "of=/tmp/file1", "bs=64M", "count=1", "oflag=direct"},
+		CPU:                0.5,           // half a CPU core
+		IOBytesPerSecond:   10_000_000,    // 10 MB/s
+		MemBytes:           1_000_000_000, // 1 GB
 	}
 
 	testJob := NewJob(&config)

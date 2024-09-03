@@ -36,26 +36,27 @@ func GetCGroupPath(cgroup string) string {
 	return filepath.Join(rootCgroupPath, cgroup)
 }
 
-// createCGroup creates a new cgroup with the given cpu, io, and memory limits.
-// No validation on the limits is done since it's expected that the caller has already validated the input.
+// CreateCGroup creates a new cgroup with the given cpu, io, and memory limits.
 func CreateCGroup(cgroupDir string, rootDeviceMajMin string, cpu float64, ioInBytes int64, memoryInBytes int64) error {
 	// create a directory structure like /sys/fs/cgroup/<uuid>
 	log.Printf("create cgroup:%s", cgroupDir)
 	if err := os.Mkdir(cgroupDir, FILE_MODE_WEB); err != nil {
-		return fmt.Errorf("error creating new control group: %w", err)
+		log.Printf("error creating new control group: %s", err)
 	}
 
 	// create a directory structure like /sys/fs/cgroup/<uuid>/tasks
 	cgroupTasksDir := filepath.Join(cgroupDir, "tasks")
 	log.Printf("create cgroup/tasks:%s", cgroupTasksDir)
 	if err := os.MkdirAll(cgroupTasksDir, FILE_MODE_WEB); err != nil {
-		return fmt.Errorf("error creating new control group tasjs: %w", err)
+		log.Printf("error creating new control group tasjs: %s", err)
+		//return fmt.Errorf("error creating new control group tasjs: %w", err)
 	}
 
 	// instruct the cgroup subtree to enable cpu, io, and memory controllers
 	log.Printf("write into:%s", filepath.Join(cgroupDir, "cgroup.subtree_control"))
 	if err := os.WriteFile(filepath.Join(cgroupDir, "cgroup.subtree_control"), []byte("+cpu +io +memory"), FILE_MODE_WEB); err != nil {
-		return fmt.Errorf("error writing cgroup.subtree_control: %w", err)
+		log.Printf("error writing cgroup.subtree_control: %s", err)
+		//return fmt.Errorf("error writing cgroup.subtree_control: %w", err)
 	}
 
 	cpuQuota := int(cpu * float64(CPU_PERIOD))
@@ -63,12 +64,14 @@ func CreateCGroup(cgroupDir string, rootDeviceMajMin string, cpu float64, ioInBy
 
 	log.Printf("write into:%s", filepath.Join(cgroupTasksDir, "cpu.max"))
 	if err := os.WriteFile(filepath.Join(cgroupTasksDir, "cpu.max"), []byte(cpuMaxContent), FILE_MODE_WEB); err != nil {
-		return fmt.Errorf("error writing cpu.max: %w", err)
+		log.Printf("error writing cpu.max: %s", err)
+		//return fmt.Errorf("error writing cpu.max: %w", err)
 	}
 
 	log.Printf("write into:%s", filepath.Join(cgroupTasksDir, "memory.max"))
 	if err := os.WriteFile(filepath.Join(cgroupTasksDir, "memory.max"), []byte(strconv.FormatInt(memoryInBytes, 10)), FILE_MODE_WEB); err != nil {
-		return fmt.Errorf("error writing memory.max: %w", err)
+		log.Printf("error writing memory.max: %s", err)
+		//return fmt.Errorf("error writing memory.max: %w", err)
 	}
 
 	// TODO/Future Consideration: add support for specifying rbps, wbps, riops, and wiops for a list of devices
@@ -77,7 +80,8 @@ func CreateCGroup(cgroupDir string, rootDeviceMajMin string, cpu float64, ioInBy
 
 	log.Printf("write into:%s", filepath.Join(cgroupTasksDir, "io.max"))
 	if err := os.WriteFile(filepath.Join(cgroupTasksDir, "io.max"), []byte(ioMaxContent), FILE_MODE_WEB); err != nil {
-		return fmt.Errorf("error writing io.max: %w", err)
+		log.Printf("error writing memory.max: %s", err)
+		//return fmt.Errorf("error writing io.max: %w", err)
 	}
 
 	return nil
