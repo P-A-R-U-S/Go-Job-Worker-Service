@@ -2,6 +2,7 @@ package namespaces
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,8 +11,8 @@ import (
 )
 
 const (
-	CPU_PERIOD     = 1_000_000
-	cgroupFileMode = 0o500
+	CPU_PERIOD = 1_000_000
+	FILE_MODE  = 0666 //0o500 = 0o500
 )
 
 var (
@@ -26,30 +27,32 @@ func GetCGroupPath(cgroup string) string {
 // createCGroup creates a new cgroup with the given cpu, io, and memory limits.
 // No validation on the limits is done since it's expected that the caller has already validated the input.
 func CreateCGroup(cgroupDir string, rootDeviceMajMin string, cpu float64, ioInBytes int64, memoryInBytes int64) error {
-	if err := os.MkdirAll(cgroupDir, cgroupFileMode); err != nil {
+	// create a directory structure like /sys/fs/cgroup/<uuid>
+	log.Printf("create cgroup:%s", cgroupDir)
+	if err := os.Mkdir(cgroupDir, FILE_MODE); err != nil {
 		return fmt.Errorf("error creating new control group: %w", err)
 	}
 
-	cgroupTasksDir := filepath.Join(cgroupDir, "tasks")
-
 	// create a directory structure like /sys/fs/cgroup/<uuid>/tasks
-	if err := os.MkdirAll(cgroupTasksDir, cgroupFileMode); err != nil {
+	cgroupTasksDir := filepath.Join(cgroupDir, "tasks")
+	log.Printf("create cgroup/tasks:%s", cgroupTasksDir)
+	if err := os.MkdirAll(cgroupTasksDir, FILE_MODE); err != nil {
 		return fmt.Errorf("error creating new control group tasjs: %w", err)
 	}
 
 	// instruct the cgroup subtree to enable cpu, io, and memory controllers
-	if err := os.WriteFile(filepath.Join(cgroupDir, "cgroup.subtree_control"), []byte("+cpu +io +memory"), cgroupFileMode); err != nil {
+	if err := os.WriteFile(filepath.Join(cgroupDir, "cgroup.subtree_control"), []byte("+cpu +io +memory"), FILE_MODE); err != nil {
 		return fmt.Errorf("error writing cgroup.subtree_control: %w", err)
 	}
 
 	cpuQuota := int(cpu * float64(CPU_PERIOD))
 	cpuMaxContent := fmt.Sprintf("%d %d", cpuQuota, CPU_PERIOD)
 
-	if err := os.WriteFile(filepath.Join(cgroupTasksDir, "cpu.max"), []byte(cpuMaxContent), cgroupFileMode); err != nil {
+	if err := os.WriteFile(filepath.Join(cgroupTasksDir, "cpu.max"), []byte(cpuMaxContent), FILE_MODE); err != nil {
 		return fmt.Errorf("error writing cpu.max: %w", err)
 	}
 
-	if err := os.WriteFile(filepath.Join(cgroupTasksDir, "memory.max"), []byte(strconv.FormatInt(memoryInBytes, 10)), cgroupFileMode); err != nil {
+	if err := os.WriteFile(filepath.Join(cgroupTasksDir, "memory.max"), []byte(strconv.FormatInt(memoryInBytes, 10)), FILE_MODE); err != nil {
 		return fmt.Errorf("error writing memory.max: %w", err)
 	}
 
@@ -57,7 +60,7 @@ func CreateCGroup(cgroupDir string, rootDeviceMajMin string, cpu float64, ioInBy
 	formattedIOInBytes := strconv.FormatInt(ioInBytes, 10)
 	ioMaxContent := fmt.Sprintf("%s rbps=%s wbps=%s riops=max wiops=max", rootDeviceMajMin, formattedIOInBytes, formattedIOInBytes)
 
-	if err := os.WriteFile(filepath.Join(cgroupTasksDir, "io.max"), []byte(ioMaxContent), cgroupFileMode); err != nil {
+	if err := os.WriteFile(filepath.Join(cgroupTasksDir, "io.max"), []byte(ioMaxContent), FILE_MODE); err != nil {
 		return fmt.Errorf("error writing io.max: %w", err)
 	}
 
@@ -97,7 +100,7 @@ func CleanupCGroup(cgroupDir string) error {
 //// cgroups v2 interface files for supporting controllers
 
 //
-//const FILE_MODE = 0666 //0o500
+//
 //
 
 //
