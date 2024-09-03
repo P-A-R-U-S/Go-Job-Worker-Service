@@ -54,7 +54,7 @@ func Test_CGroup(t *testing.T) {
 
 	// defer to be sure test cgroup had been removed
 
-	err := CreateCGroup(cgroupName, "", CPU, IOBytesPerSecond, MemBytes)
+	err := CreateCGroup(cgroupDir, "", CPU, IOBytesPerSecond, MemBytes)
 	if err != nil {
 		t.Errorf("could not create cgroup: %v", err)
 	}
