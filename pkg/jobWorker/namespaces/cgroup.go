@@ -98,14 +98,16 @@ func AddProcess(cgroupName string, cmd *exec.Cmd) error {
 	return nil
 }
 
-// cleanupCGroup removes the cgroup directory and all of its contents.
+// CleanupCGroup removes the cgroup directory and all of its contents.
 func CleanupCGroup(cgroupDir string) error {
 	cgroupTasksDir := filepath.Join(cgroupDir, "tasks")
 
+	log.Printf("remove cgroup/tasks:%s", cgroupTasksDir)
 	if err := os.RemoveAll(cgroupTasksDir); err != nil {
 		return fmt.Errorf("error removing cgroup tasks directory: %w", err)
 	}
 
+	log.Printf("remove cgroup:%s", cgroupDir)
 	if err := os.RemoveAll(cgroupDir); err != nil {
 		return fmt.Errorf("error removing cgroup directory: %w", err)
 	}

@@ -40,8 +40,8 @@ func Test_CGroup(t *testing.T) {
 		t.Errorf("expected:%s to exist to represent cgroup", cgroupDir)
 	}
 
-	// TEST DeleteGroup
-	err = CleanupCGroup(cgroupName)
+	// TEST Delete CGroup
+	err = CleanupCGroup(cgroupDir)
 	if err != nil {
 		t.Errorf("could not delete cgroup: %v", err)
 	}
