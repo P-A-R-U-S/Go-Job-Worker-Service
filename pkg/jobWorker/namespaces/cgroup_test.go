@@ -18,7 +18,7 @@ func Test_CGroup(t *testing.T) {
 
 	// Set up Cgroup to test with test tmp dir
 	// TEST CreateGroup
-	cgroupDir := filepath.Join(rootCgroupPath, cgroupName)
+	cgroupDir := filepath.Join(t.TempDir(), cgroupName)
 
 	defer func() {
 		exist, err := isDirExists(cgroupDir)
