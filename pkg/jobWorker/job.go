@@ -249,7 +249,9 @@ func (job *Job) Start() error {
 			job.status.ExitReason = job.status.ExitReason + fmt.Sprintf("error closing cgroup: %s\n", err)
 		}
 
-		ns.UnmountProc(rootfs)
+		if err = ns.UnmountProc(); err != nil {
+			log.Printf("error unmounting /proc - %s\n", err)
+		}
 	}()
 
 	return nil

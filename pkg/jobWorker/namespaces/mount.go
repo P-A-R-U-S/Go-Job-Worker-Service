@@ -65,7 +65,7 @@ func MountProc() error {
 }
 
 // UnmountProc - unmount proc filesystem at /proc.
-func UnmountProc(rootfs string) error {
+func UnmountProc() error {
 	err := syscall.Unmount("/proc", 0)
 	if err != nil {
 		return fmt.Errorf("error unmounting proc: %w", err)
