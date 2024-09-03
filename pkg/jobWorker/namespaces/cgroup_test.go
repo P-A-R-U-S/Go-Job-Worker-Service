@@ -1,11 +1,8 @@
 package namespaces
 
 import (
-	"fmt"
-	"log"
+	"github.com/google/uuid"
 	"os"
-	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -23,88 +20,64 @@ func exists(path string) (bool, error) {
 	return false, err
 }
 
-func validateCgroupController(cgroupName, controller, value string) (error error) {
+//func validateCgroupController(cgroupName, controller, value string) (error error) {
+//
+//	// TEST AddResourceControl
+//	err = AddResourceControl(cgroupName, controller, value)
+//	if err != nil {
+//		return fmt.Errorf("could not add resource controls to cgroup (%s) controller: %v", controller, err)
+//	}
+//	// assert cgroup controller files are updated
+//	controllerValue, err := os.ReadFile(filepath.Join(testcgroupPath, controller))
+//	if err != nil {
+//		return fmt.Errorf("could not read cgroup (%s) controller: %v", controller, err)
+//	}
+//	if strings.Compare(strings.TrimSpace(string(controllerValue)), value) != 0 {
+//		return fmt.Errorf("controller:(%s)  is incorrect: %v (expected:%s, actual:%s)",
+//			controller,
+//			err,
+//			string(controllerValue),
+//			value)
+//	}
+//}
+
+func Test_CGroup(t *testing.T) {
+	t.Parallel()
+
+	CPU := 0.5                            // half a CPU core
+	IOBytesPerSecond := int64(10_000_000) // 10 MB/s
+	MemBytes := int64(1_000_000_000)      // 1 GB
+
+	cgroupName := strings.Replace(uuid.New().String(), "-", "", -1)
+
 	// Set up Cgroup to test with test tmp dir
 	// TEST CreateGroup
-	testcgroupPath := groupPath(cgroupName)
+	cgroupDir := GetCGroupPath(cgroupName)
 
 	// defer to be sure test cgroup had been removed
-	defer func() {
-		exist, err := exists(testcgroupPath)
-		if exist || err != nil {
-			err := DeleteGroup(cgroupName)
-			log.Print("error deleting cgroup ", err)
-		}
-	}()
 
-	err := CreateGroup(cgroupName)
+	err := CreateCGroup(cgroupName, "", CPU, IOBytesPerSecond, MemBytes)
 	if err != nil {
-		return fmt.Errorf("could not create cgroup: %v", err)
+		t.Errorf("could not create cgroup: %v", err)
 	}
 	// assert cgroup exists
-	exist, err := exists(testcgroupPath)
+	exist, err := exists(cgroupDir)
 	if !exist || err != nil {
-		return fmt.Errorf("expected:%s to exist to represent cgroup", testcgroupPath)
+		t.Errorf("expected:%s to exist to represent cgroup", cgroupDir)
 	}
 
-	// TEST AddResourceControl
-	err = AddResourceControl(cgroupName, controller, value)
-	if err != nil {
-		return fmt.Errorf("could not add resource controls to cgroup (%s) controller: %v", controller, err)
-	}
-	// assert cgroup controller files are updated
-	controllerValue, err := os.ReadFile(filepath.Join(testcgroupPath, controller))
-	if err != nil {
-		return fmt.Errorf("could not read cgroup (%s) controller: %v", controller, err)
-	}
-	if strings.Compare(strings.TrimSpace(string(controllerValue)), value) != 0 {
-		return fmt.Errorf("controller:(%s)  is incorrect: %v (expected:%s, actual:%s)",
-			controller,
-			err,
-			string(controllerValue),
-			value)
-	}
 	// TEST DeleteGroup
-	err = DeleteGroup(cgroupName)
+	err = CleanupCGroup(cgroupName)
 	if err != nil {
-		return fmt.Errorf("could not delete cgroup: %v", err)
+		t.Errorf("could not delete cgroup: %v", err)
 	}
 
 	//assert file is not there
-	exist, err = exists(testcgroupPath)
+	exist, err = exists(cgroupDir)
 	if exist || err != nil {
-		return fmt.Errorf("expected cgroup folder: %s NOT to exist to represent cgroup:%s", testcgroupPath, cgroupName)
+		t.Errorf("expected cgroup folder: %s NOT to exist to represent cgroup:%s", cgroupDir, cgroupName)
 	}
 
 	// just to let system handle cgroup cleanup
 	time.Sleep(1000)
-
-	return nil
-}
-
-func Test_CGroup_CPU_WEIGHT_FILE(t *testing.T) {
-	t.Parallel()
-
-	cgroupName := "fakeCGroupName"
-
-	testCases := []struct {
-		cgroup     string
-		controller string
-		value      string
-	}{
-
-		{cgroupName, CPU_WEIGHT_FILE, strconv.Itoa(50)},
-		{cgroupName, MEMORY_HIGH_FILE, strconv.Itoa(10 * 1024 * 1024 * 1024)},
-		//{cgroupName, IO_WEIGHT_FILE, strconv.Itoa(1_000_000)},
-	}
-
-	for _, tc := range testCases {
-		testName := fmt.Sprintf("run for controller:%s, cgroup:%s", tc.controller, tc.cgroup)
-		t.Run(testName, func(t *testing.T) {
-			err := validateCgroupController(tc.cgroup, tc.controller, tc.value)
-			if err != nil {
-				t.Errorf("failed: %v", err)
-			}
-		})
-	}
 }

@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -172,26 +171,45 @@ func (job *Job) Start() error {
 
 	formatedUUID := strings.Replace(job.UUID.String(), "-", "", -1)
 
-	// create a new control group for the process
 	cgroupName := formatedUUID
-	if _, err := ns.CreateGroup(cgroupName); err != nil {
-		return fmt.Errorf("failed to create cgroup %s: %v", cgroupName, err)
+	cgroupDir := ns.GetCGroupPath(cgroupName)
+
+	err := ns.CreateCGroup(cgroupDir, job.config.RootPhysicalDevice, job.config.CPU, job.config.IOBytesPerSecond, job.config.MemBytes)
+	if err != nil {
+		return fmt.Errorf("error creating cgroup: %w", err)
 	}
 
-	if err := ns.AddResourceControl(cgroupName, ns.CPU_WEIGHT_FILE, strconv.Itoa(int(job.config.CPU*100.0))); err != nil {
-		return err
+	// open the cgroup.procs file so cmd.Run can automatically add the new PID to the control group
+	cgroupTasksDir := filepath.Join(cgroupDir, "tasks")
+
+	procsFile, err := os.OpenFile(cgroupTasksDir, os.O_RDONLY, 0)
+	if err != nil {
+		return fmt.Errorf("error opening cgroup.procs: %w", err)
 	}
-	if err := ns.AddResourceControl(cgroupName, ns.MEMORY_HIGH_FILE, strconv.FormatInt(job.config.MemBytes, 10)); err != nil {
-		return err
-	}
+
+	// provide the file descriptor to cmd.Run so that it can add the new PID to the control group
+	cmd.SysProcAttr.CgroupFD = int(procsFile.Fd())
+
+	//// create a new control group for the process
+	//cgroupName := formatedUUID
+	//if _, err := ns.CreateGroup(cgroupName); err != nil {
+	//	return fmt.Errorf("failed to create cgroup %s: %v", cgroupName, err)
+	//}
+	//
+	//if err := ns.AddResourceControl(cgroupName, ns.CPU_WEIGHT_FILE, strconv.Itoa(int(job.config.CPU*100.0))); err != nil {
+	//	return err
+	//}
+	//if err := ns.AddResourceControl(cgroupName, ns.MEMORY_HIGH_FILE, strconv.FormatInt(job.config.MemBytes, 10)); err != nil {
+	//	return err
+	//}
 	//value = strconv.FormatInt(job.config.IOBytesPerSecond, 10)
 	//if err := ns.AddResourceControl(cgroupName, ns.IO_WEIGHT_FILE, strconv.FormatInt(job.config.IOBytesPerSecond, 10)); err != nil {
 	//	return fmt.Errorf("not able to add resources:%s into cgroup controller:%s", value, ns.IO_WEIGHT_FILE)
 	//}
 
-	if err := ns.AddProcess(cgroupName, cmd); err != nil {
-		return fmt.Errorf("not able to add process:%s", err)
-	}
+	//if err := ns.AddProcess(cgroupName, cmd); err != nil {
+	//	return fmt.Errorf("not able to add process:%s", err)
+	//}
 
 	rootfs := formatedUUID
 
@@ -205,13 +223,13 @@ func (job *Job) Start() error {
 	//	os.Exit(1)
 	//}
 
-	cgroupDir := filepath.Join("/sys/fs/cgroup/", cgroupName)
-	if procsFile, err := os.OpenFile(cgroupDir, os.O_RDONLY, 0); err != nil {
-		return fmt.Errorf("error opening cgroup.procs: %w", err)
-	} else {
-		// provide the file descriptor to cmd.Run so that it can add the new PID to the control group
-		cmd.SysProcAttr.CgroupFD = int(procsFile.Fd())
-	}
+	//cgroupDir := filepath.Join("/sys/fs/cgroup/", cgroupName)
+	//if procsFile, err := os.OpenFile(cgroupDir, os.O_RDONLY, 0); err != nil {
+	//	return fmt.Errorf("error opening cgroup.procs: %w", err)
+	//} else {
+	//	// provide the file descriptor to cmd.Run so that it can add the new PID to the control group
+	//	cmd.SysProcAttr.CgroupFD = int(procsFile.Fd())
+	//}
 
 	log.Printf("starting job:%s", job)
 	if err := cmd.Start(); err != nil {
@@ -234,7 +252,7 @@ func (job *Job) Start() error {
 
 		job.processState = processState
 		job.status.ExitCode = job.processState.ExitCode()
-		if job.status.State != JOB_STATUS_TERMINATED {
+		if job.status.State == JOB_STATUS_RUNNING {
 			job.status.State = JOB_STATUS_COMPLETED
 		}
 
@@ -253,7 +271,12 @@ func (job *Job) Start() error {
 		}
 
 		// do not close the cgroup.procs file until after the process has exited
-		if err = ns.DeleteGroup(cgroupName); err != nil {
+		if err = procsFile.Close(); err != nil {
+			job.status.ExitReason = job.status.ExitReason + fmt.Sprintf("error closing cgroup.procs: %w", err)
+		}
+
+		// do not close the cgroup.procs file until after the process has exited
+		if err = ns.CleanupCGroup(cgroupName); err != nil {
 			job.status.ExitReason = job.status.ExitReason + fmt.Sprintf("error closing cgroup: %s\n", err)
 		}
 	}()

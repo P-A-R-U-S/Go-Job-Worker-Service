@@ -1,12 +1,11 @@
 package jobWorker
 
 import (
-	"bytes"
 	"io"
+	"os"
 	"strings"
 	"testing"
 	"time"
-	"unsafe"
 )
 
 func Test_Job_Running(t *testing.T) {
@@ -200,9 +199,13 @@ func Test_Job_IOLimits(t *testing.T) {
 	}
 }
 
-func getJobOutput(testJob *Job) string {
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(testJob.Stream())
-	b := buf.Bytes()
-	return *(*string)(unsafe.Pointer(&b))
+func getMajMinForRootDevice(t *testing.T) string {
+	t.Helper()
+
+	rootDeviceMajMin := os.Getenv("ROOT_DEVICE_MAJ_MIN")
+	if rootDeviceMajMin == "" {
+		t.Fatal("ROOT_DEVICE_MAJ_MIN environment variable must be set")
+	}
+
+	return rootDeviceMajMin
 }
