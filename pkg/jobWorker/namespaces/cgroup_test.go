@@ -1,6 +1,7 @@
 package namespaces
 
 import (
+	"log"
 	"os"
 	"testing"
 	"time"
@@ -54,6 +55,7 @@ func Test_CGroup(t *testing.T) {
 	defer func() {
 		exist, err := exists(cgroupDir)
 		if exist && err == nil {
+			log.Print("deleting cgroup directory on defer:%s", cgroupDir)
 			_ = CleanupCGroup(cgroupDir)
 		}
 	}()

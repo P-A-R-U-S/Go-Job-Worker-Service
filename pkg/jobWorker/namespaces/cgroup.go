@@ -52,6 +52,7 @@ func CreateCGroup(cgroupDir string, rootDeviceMajMin string, cpu float64, ioInBy
 	}
 
 	// instruct the cgroup subtree to enable cpu, io, and memory controllers
+	log.Printf("write into:%s", filepath.Join(cgroupDir, "cgroup.subtree_control"))
 	if err := os.WriteFile(filepath.Join(cgroupDir, "cgroup.subtree_control"), []byte("+cpu +io +memory"), FILE_MODE); err != nil {
 		return fmt.Errorf("error writing cgroup.subtree_control: %w", err)
 	}
@@ -59,10 +60,12 @@ func CreateCGroup(cgroupDir string, rootDeviceMajMin string, cpu float64, ioInBy
 	cpuQuota := int(cpu * float64(CPU_PERIOD))
 	cpuMaxContent := fmt.Sprintf("%d %d", cpuQuota, CPU_PERIOD)
 
+	log.Printf("write into:%s", filepath.Join(cgroupTasksDir, "cpu.max"))
 	if err := os.WriteFile(filepath.Join(cgroupTasksDir, "cpu.max"), []byte(cpuMaxContent), FILE_MODE); err != nil {
 		return fmt.Errorf("error writing cpu.max: %w", err)
 	}
 
+	log.Printf("write into:%s", filepath.Join(cgroupTasksDir, "memory.max"))
 	if err := os.WriteFile(filepath.Join(cgroupTasksDir, "memory.max"), []byte(strconv.FormatInt(memoryInBytes, 10)), FILE_MODE); err != nil {
 		return fmt.Errorf("error writing memory.max: %w", err)
 	}
@@ -71,6 +74,7 @@ func CreateCGroup(cgroupDir string, rootDeviceMajMin string, cpu float64, ioInBy
 	formattedIOInBytes := strconv.FormatInt(ioInBytes, 10)
 	ioMaxContent := fmt.Sprintf("%s rbps=%s wbps=%s riops=max wiops=max", rootDeviceMajMin, formattedIOInBytes, formattedIOInBytes)
 
+	log.Printf("write into:%s", filepath.Join(cgroupTasksDir, "io.max"))
 	if err := os.WriteFile(filepath.Join(cgroupTasksDir, "io.max"), []byte(ioMaxContent), FILE_MODE); err != nil {
 		return fmt.Errorf("error writing io.max: %w", err)
 	}
