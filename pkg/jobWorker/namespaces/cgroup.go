@@ -23,7 +23,8 @@ const (
 
 		0655 Only the owner can read and write, but not execute the file. Everyone else can read and execute, but cannot modify the file.
 	*/
-	FILE_MODE = 0777 //0o500 = 0o500
+	FILE_MODE_EVERYONE = 0777
+	FILE_MODE_WEB      = 0755 //0o500 = 0o500
 )
 
 var (
@@ -40,20 +41,20 @@ func GetCGroupPath(cgroup string) string {
 func CreateCGroup(cgroupDir string, rootDeviceMajMin string, cpu float64, ioInBytes int64, memoryInBytes int64) error {
 	// create a directory structure like /sys/fs/cgroup/<uuid>
 	log.Printf("create cgroup:%s", cgroupDir)
-	if err := os.Mkdir(cgroupDir, FILE_MODE); err != nil {
+	if err := os.Mkdir(cgroupDir, FILE_MODE_WEB); err != nil {
 		return fmt.Errorf("error creating new control group: %w", err)
 	}
 
 	// create a directory structure like /sys/fs/cgroup/<uuid>/tasks
 	cgroupTasksDir := filepath.Join(cgroupDir, "tasks")
 	log.Printf("create cgroup/tasks:%s", cgroupTasksDir)
-	if err := os.MkdirAll(cgroupTasksDir, FILE_MODE); err != nil {
+	if err := os.MkdirAll(cgroupTasksDir, FILE_MODE_WEB); err != nil {
 		return fmt.Errorf("error creating new control group tasjs: %w", err)
 	}
 
 	// instruct the cgroup subtree to enable cpu, io, and memory controllers
 	log.Printf("write into:%s", filepath.Join(cgroupDir, "cgroup.subtree_control"))
-	if err := os.WriteFile(filepath.Join(cgroupDir, "cgroup.subtree_control"), []byte("+cpu +io +memory"), FILE_MODE); err != nil {
+	if err := os.WriteFile(filepath.Join(cgroupDir, "cgroup.subtree_control"), []byte("+cpu +io +memory"), FILE_MODE_WEB); err != nil {
 		return fmt.Errorf("error writing cgroup.subtree_control: %w", err)
 	}
 
@@ -61,12 +62,12 @@ func CreateCGroup(cgroupDir string, rootDeviceMajMin string, cpu float64, ioInBy
 	cpuMaxContent := fmt.Sprintf("%d %d", cpuQuota, CPU_PERIOD)
 
 	log.Printf("write into:%s", filepath.Join(cgroupTasksDir, "cpu.max"))
-	if err := os.WriteFile(filepath.Join(cgroupTasksDir, "cpu.max"), []byte(cpuMaxContent), FILE_MODE); err != nil {
+	if err := os.WriteFile(filepath.Join(cgroupTasksDir, "cpu.max"), []byte(cpuMaxContent), FILE_MODE_WEB); err != nil {
 		return fmt.Errorf("error writing cpu.max: %w", err)
 	}
 
 	log.Printf("write into:%s", filepath.Join(cgroupTasksDir, "memory.max"))
-	if err := os.WriteFile(filepath.Join(cgroupTasksDir, "memory.max"), []byte(strconv.FormatInt(memoryInBytes, 10)), FILE_MODE); err != nil {
+	if err := os.WriteFile(filepath.Join(cgroupTasksDir, "memory.max"), []byte(strconv.FormatInt(memoryInBytes, 10)), FILE_MODE_WEB); err != nil {
 		return fmt.Errorf("error writing memory.max: %w", err)
 	}
 
@@ -75,7 +76,7 @@ func CreateCGroup(cgroupDir string, rootDeviceMajMin string, cpu float64, ioInBy
 	ioMaxContent := fmt.Sprintf("%s rbps=%s wbps=%s riops=max wiops=max", rootDeviceMajMin, formattedIOInBytes, formattedIOInBytes)
 
 	log.Printf("write into:%s", filepath.Join(cgroupTasksDir, "io.max"))
-	if err := os.WriteFile(filepath.Join(cgroupTasksDir, "io.max"), []byte(ioMaxContent), FILE_MODE); err != nil {
+	if err := os.WriteFile(filepath.Join(cgroupTasksDir, "io.max"), []byte(ioMaxContent), FILE_MODE_WEB); err != nil {
 		return fmt.Errorf("error writing io.max: %w", err)
 	}
 
@@ -111,42 +112,3 @@ func CleanupCGroup(cgroupDir string) error {
 
 	return nil
 }
-
-//// cgroups v2 interface files for supporting controllers
-
-//
-//
-//
-
-//
-//// CreateGroup creates a directory in the cgroup root path to signal cgroup to create a group
-//// TODO: In PROD we could check here the cgroup was created correctly,
-////
-////	such as checking cgroup.controllers file for supported controllers
-//func CreateGroup(cgroupName string) (string, error) {
-//	return groupPath(cgroupName), os.Mkdir(groupPath(cgroupName), 0755)
-//}
-//
-//// DeleteGroup deletes a cgroup's directory signalling cgroup to delete the group
-//// TODO in production before deleting a group we could check cgroup.events to ensure no processes are still running in their cgroup
-//func DeleteGroup(cgroupName string) error {
-//	return os.RemoveAll(groupPath(cgroupName))
-//}
-//
-
-//
-//// AddResourceControl updates the resource control interface file for a given cgroup using JobOpts.
-//func AddResourceControl(cgroupName string, controller string, value string) (err error) {
-//	if err = updateController(cgroupName, controller, value); err != nil {
-//		return fmt.Errorf("not able to add resources:%s into cgroup controller:%s", value, controller)
-//	}
-//	return nil
-//}
-//
-
-//
-//// updateController sets the content of the controller interface file for a
-//// given resource controller within a CGroup (e.g. "memory.high", etc.)
-//func updateController(cgroupName string, file, value string) error {
-//	return os.WriteFile(filepath.Join(groupPath(cgroupName), file), []byte(value), FILE_MODE)
-//}

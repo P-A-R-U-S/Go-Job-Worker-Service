@@ -3,42 +3,10 @@ package namespaces
 import (
 	"log"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 )
-
-// exists returns whether the given file or directory exists
-func exists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	return false, err
-}
-
-//func validateCgroupController(cgroupName, controller, value string) (error error) {
-//
-//	// TEST AddResourceControl
-//	err = AddResourceControl(cgroupName, controller, value)
-//	if err != nil {
-//		return fmt.Errorf("could not add resource controls to cgroup (%s) controller: %v", controller, err)
-//	}
-//	// assert cgroup controller files are updated
-//	controllerValue, err := os.ReadFile(filepath.Join(testcgroupPath, controller))
-//	if err != nil {
-//		return fmt.Errorf("could not read cgroup (%s) controller: %v", controller, err)
-//	}
-//	if strings.Compare(strings.TrimSpace(string(controllerValue)), value) != 0 {
-//		return fmt.Errorf("controller:(%s)  is incorrect: %v (expected:%s, actual:%s)",
-//			controller,
-//			err,
-//			string(controllerValue),
-//			value)
-//	}
-//}
 
 func Test_CGroup(t *testing.T) {
 	t.Parallel()
@@ -50,10 +18,10 @@ func Test_CGroup(t *testing.T) {
 
 	// Set up Cgroup to test with test tmp dir
 	// TEST CreateGroup
-	cgroupDir := GetCGroupPath(cgroupName)
+	cgroupDir := filepath.Join(rootCgroupPath, cgroupName)
 
 	defer func() {
-		exist, err := exists(cgroupDir)
+		exist, err := isDirExists(cgroupDir)
 		if exist && err == nil {
 			log.Printf("deleting cgroup directory on defer:%s", cgroupDir)
 			_ = CleanupCGroup(cgroupDir)
@@ -67,7 +35,7 @@ func Test_CGroup(t *testing.T) {
 		t.Errorf("could not create cgroup: %v", err)
 	}
 	// assert cgroup exists
-	exist, err := exists(cgroupDir)
+	exist, err := isDirExists(cgroupDir)
 	if !exist || err != nil {
 		t.Errorf("expected:%s to exist to represent cgroup", cgroupDir)
 	}
@@ -79,11 +47,23 @@ func Test_CGroup(t *testing.T) {
 	}
 
 	//assert file is not there
-	exist, err = exists(cgroupDir)
+	exist, err = isDirExists(cgroupDir)
 	if exist || err != nil {
 		t.Errorf("expected cgroup folder: %s NOT to exist to represent cgroup:%s", cgroupDir, cgroupName)
 	}
 
 	// just to let system handle cgroup cleanup
 	time.Sleep(1000)
+}
+
+// exists returns whether the given file or directory exists
+func isDirExists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return false, err
 }

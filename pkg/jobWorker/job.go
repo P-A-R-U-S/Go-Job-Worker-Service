@@ -190,45 +190,14 @@ func (job *Job) Start() error {
 	// provide the file descriptor to cmd.Run so that it can add the new PID to the control group
 	cmd.SysProcAttr.CgroupFD = int(procsFile.Fd())
 
-	//// create a new control group for the process
-	//cgroupName := formatedUUID
-	//if _, err := ns.CreateGroup(cgroupName); err != nil {
-	//	return fmt.Errorf("failed to create cgroup %s: %v", cgroupName, err)
-	//}
-	//
-	//if err := ns.AddResourceControl(cgroupName, ns.CPU_WEIGHT_FILE, strconv.Itoa(int(job.config.CPU*100.0))); err != nil {
-	//	return err
-	//}
-	//if err := ns.AddResourceControl(cgroupName, ns.MEMORY_HIGH_FILE, strconv.FormatInt(job.config.MemBytes, 10)); err != nil {
-	//	return err
-	//}
-	//value = strconv.FormatInt(job.config.IOBytesPerSecond, 10)
-	//if err := ns.AddResourceControl(cgroupName, ns.IO_WEIGHT_FILE, strconv.FormatInt(job.config.IOBytesPerSecond, 10)); err != nil {
-	//	return fmt.Errorf("not able to add resources:%s into cgroup controller:%s", value, ns.IO_WEIGHT_FILE)
-	//}
-
-	//if err := ns.AddProcess(cgroupName, cmd); err != nil {
-	//	return fmt.Errorf("not able to add process:%s", err)
-	//}
-
-	rootfs := formatedUUID
-
-	if err := ns.MountProc(rootfs); err != nil {
+	if err := ns.MountProc(); err != nil {
 		fmt.Printf("Error mounting /proc - %s\n", err)
 		os.Exit(1)
 	}
 
-	//if err := ns.PivotRoot(newrootPath); err != nil {
+	//if err := ns.PivotRoot(rootfs); err != nil {
 	//	fmt.Printf("Error running pivot_root - %s\n", err)
 	//	os.Exit(1)
-	//}
-
-	//cgroupDir := filepath.Join("/sys/fs/cgroup/", cgroupName)
-	//if procsFile, err := os.OpenFile(cgroupDir, os.O_RDONLY, 0); err != nil {
-	//	return fmt.Errorf("error opening cgroup.procs: %w", err)
-	//} else {
-	//	// provide the file descriptor to cmd.Run so that it can add the new PID to the control group
-	//	cmd.SysProcAttr.CgroupFD = int(procsFile.Fd())
 	//}
 
 	log.Printf("starting job:%s", job)
@@ -279,6 +248,8 @@ func (job *Job) Start() error {
 		if err = ns.CleanupCGroup(cgroupName); err != nil {
 			job.status.ExitReason = job.status.ExitReason + fmt.Sprintf("error closing cgroup: %s\n", err)
 		}
+
+		ns.UnmountProc(rootfs)
 	}()
 
 	return nil

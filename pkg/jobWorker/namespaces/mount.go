@@ -19,7 +19,7 @@ func PivotRoot(rootfs string) error {
 
 	// create rootfs/.pivot_root as path for old_root
 	pivotDir := filepath.Join(rootfs, ".pivot_root")
-	if err := os.Mkdir(pivotDir, 0777); err != nil {
+	if err := os.Mkdir(pivotDir, FILE_MODE_EVERYONE); err != nil {
 		return fmt.Errorf("error (syscall.MkdirAll) %s", err)
 	}
 
@@ -55,25 +55,17 @@ func PivotRoot(rootfs string) error {
 	return nil
 }
 
-func MountProc(rootfs string) error {
-	source := "proc"
-	target := filepath.Join(rootfs, "/proc")
-	fstype := "proc"
-	flags := 0
-	data := ""
-
-	if err := os.MkdirAll(target, 0755); err != nil {
-		return err
+// MountProc - mount proc filesystem at /proc.
+func MountProc() error {
+	err := syscall.Mount("proc", "/proc", "proc", 0, "")
+	if err != nil {
+		return fmt.Errorf("error mounting proc: %w", err)
 	}
-	if err := syscall.Mount(source, target, fstype, uintptr(flags), data); err != nil {
-		return err
-	}
-
 	return nil
 }
 
-// unmount - mounts a proc filesystem at /proc.
-func UnmountProc(newroot string) error {
+// UnmountProc - unmount proc filesystem at /proc.
+func UnmountProc(rootfs string) error {
 	err := syscall.Unmount("/proc", 0)
 	if err != nil {
 		return fmt.Errorf("error unmounting proc: %w", err)
