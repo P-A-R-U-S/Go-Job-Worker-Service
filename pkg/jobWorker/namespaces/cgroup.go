@@ -84,18 +84,19 @@ func CreateCGroup(cgroupDir string, rootDeviceMajMin string, cpu float64, ioInBy
 }
 
 // AddProcess mutates the given cmd to instruct GO to add the PID of the started process to a given cgroup
-func AddProcess(cgroupName string, cmd *exec.Cmd) error {
+func AddProcess(cgroupTasksDir string, cmd *exec.Cmd) (*os.File, error) {
 	// Add job's process to cgroup
-	f, err := syscall.Open(GetCGroupPath(cgroupName), 0x200000, 0)
+	//f, err := syscall.Open(GetCGroupPath(cgroupTasksDir), os.O_RDWR, 0)
+	f, err := os.OpenFile(cgroupTasksDir, os.O_RDWR, 0) //TODO: other possible options to get file description. Need to check what is most optimal or better based on context
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// This is where clone args and namespaces for user, PID and fs can be set
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		UseCgroupFD: true,
-		CgroupFD:    f,
+		CgroupFD:    int(f.Fd()),
 	}
-	return nil
+	return f, nil
 }
 
 // CleanupCGroup removes the cgroup directory and all of its contents.
