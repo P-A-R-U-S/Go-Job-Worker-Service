@@ -26,11 +26,15 @@ func GetCGroupPath(cgroup string) string {
 // createCGroup creates a new cgroup with the given cpu, io, and memory limits.
 // No validation on the limits is done since it's expected that the caller has already validated the input.
 func CreateCGroup(cgroupDir string, rootDeviceMajMin string, cpu float64, ioInBytes int64, memoryInBytes int64) error {
+	if err := os.MkdirAll(cgroupDir, cgroupFileMode); err != nil {
+		return fmt.Errorf("error creating new control group: %w", err)
+	}
+
 	cgroupTasksDir := filepath.Join(cgroupDir, "tasks")
 
 	// create a directory structure like /sys/fs/cgroup/<uuid>/tasks
 	if err := os.MkdirAll(cgroupTasksDir, cgroupFileMode); err != nil {
-		return fmt.Errorf("error creating new control group: %w", err)
+		return fmt.Errorf("error creating new control group tasjs: %w", err)
 	}
 
 	// instruct the cgroup subtree to enable cpu, io, and memory controllers

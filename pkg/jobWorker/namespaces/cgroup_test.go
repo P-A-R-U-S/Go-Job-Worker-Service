@@ -1,9 +1,7 @@
 package namespaces
 
 import (
-	"github.com/google/uuid"
 	"os"
-	"strings"
 	"testing"
 	"time"
 )
@@ -48,7 +46,7 @@ func Test_CGroup(t *testing.T) {
 	IOBytesPerSecond := int64(10_000_000) // 10 MB/s
 	MemBytes := int64(1_000_000_000)      // 1 GB
 
-	cgroupName := strings.Replace(uuid.New().String(), "-", "", -1)
+	cgroupName := "fakecgroup" //strings.Replace(uuid.New().String(), "-", "", -1)
 
 	// Set up Cgroup to test with test tmp dir
 	// TEST CreateGroup
