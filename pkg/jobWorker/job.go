@@ -241,7 +241,7 @@ func (job *Job) Start() error {
 
 		// do not close the cgroup.procs file until after the process has exited
 		if err = procsFile.Close(); err != nil {
-			job.status.ExitReason = job.status.ExitReason + fmt.Sprintf("error closing cgroup.procs: %w", err)
+			job.status.ExitReason = job.status.ExitReason + fmt.Sprintf("error closing cgroup.procs: %s", err)
 		}
 
 		// do not close the cgroup.procs file until after the process has exited
