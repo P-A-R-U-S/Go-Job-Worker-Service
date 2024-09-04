@@ -6,6 +6,7 @@ import (
 
 var (
 	ErrOutputMissing = errors.New("OutputReader's CommandOutput is nil")
+	ErrReaderClosed  = errors.New("OutputReader is closed")
 )
 
 // OutputReadCloser implements io.ReadCloser interface to read from the provided CommandOutput
@@ -15,6 +16,7 @@ type OutputReadCloser struct {
 	output *CommandOutput
 	// readIndex is the index of the next byte to read from the Output
 	readIndex int64
+	isClosed  bool
 }
 
 func NewOutputReadCloser(output *CommandOutput) *OutputReadCloser {
@@ -26,6 +28,10 @@ func NewOutputReadCloser(output *CommandOutput) *OutputReadCloser {
 //	Wait for changes to the CommandOutput if no content is available to read.
 //	Returns EOF if the CommandOutput is closed and all the content has been read.
 func (outputReadCloser *OutputReadCloser) Read(buffer []byte) (n int, err error) {
+	if outputReadCloser.isClosed {
+		return 0, ErrReaderClosed
+	}
+
 	if outputReadCloser.output == nil {
 		return 0, ErrOutputMissing
 	}
@@ -59,8 +65,11 @@ func (outputReadCloser *OutputReadCloser) Close() error {
 		return ErrOutputMissing
 	}
 
-	if !outputReadCloser.output.isClosed {
-		return outputReadCloser.output.Close()
+	if outputReadCloser.isClosed {
+		return ErrReaderClosed
 	}
+
+	outputReadCloser.isClosed = true
+
 	return nil
 }
