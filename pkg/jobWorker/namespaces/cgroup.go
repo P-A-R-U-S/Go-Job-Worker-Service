@@ -33,7 +33,7 @@ var (
 	rootCgroupPath = "/sys/fs/cgroup"
 )
 
-// AddProcess mutates the given cmd to instruct GO to add the PID of the started process to a given cgroup
+// AddProcess mutates the given cmd to instruct to add the PID of the started process to a given cgroup
 func AddProcess(cgroupName string, cmd *exec.Cmd) error {
 	// Add job's process to cgroup
 	cgroupDir := GetCGroupPath(cgroupName)

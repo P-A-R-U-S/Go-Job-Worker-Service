@@ -184,9 +184,9 @@ func (job *Job) Start() error {
 	if err = ns.AddResourceControl(cgroupName, ns.MEMORY_HIGH_File, strconv.FormatInt(job.config.MemBytes, 10)); err != nil {
 		return fmt.Errorf("could not add resources into controller:%s, %v", ns.MEMORY_HIGH_File, err)
 	}
-	//if err = ns.AddResourceControl(cgroupName, ns.IO_WEIGHT_File, strconv.FormatInt(job.config.IOBytesPerSecond, 10)); err != nil {
-	//	return fmt.Errorf("could not add resources into controller:%s, %v", ns.IO_WEIGHT_File, err)
-	//}
+	if err = ns.AddResourceControl(cgroupName, ns.IO_WEIGHT_File, strconv.FormatInt(job.config.IOBytesPerSecond, 10)); err != nil {
+		return fmt.Errorf("could not add resources into controller:%s, %v", ns.IO_WEIGHT_File, err)
+	}
 
 	//provide the file descriptor to cmd.Run so that it can add the new PID to the control group
 	if err = ns.AddProcess(cgroupName, cmd); err != nil {
