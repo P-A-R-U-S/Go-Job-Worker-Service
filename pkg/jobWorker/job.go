@@ -8,7 +8,6 @@ import (
 	"log"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -188,11 +187,10 @@ func (job *Job) Start() error {
 	//if err = ns.AddResourceControl(cgroupName, ns.IO_WEIGHT_File, strconv.FormatInt(job.config.IOBytesPerSecond, 10)); err != nil {
 	//	return fmt.Errorf("could not add resources into controller:%s, %v", ns.IO_WEIGHT_File, err)
 	//}
-	// open the cgroup.procs file so cmd.Run can automatically add the new PID to the control group
-	cgroupTasksDir := filepath.Join(ns.GetCGroupPath(cgroupName), "tasks")
+
 	// provide the file descriptor to cmd.Run so that it can add the new PID to the control group
 	var procsFile *os.File
-	if procsFile, err = ns.AddProcess(cgroupTasksDir, cmd); err != nil {
+	if procsFile, err = ns.AddProcess(cgroupName, cmd); err != nil {
 		log.Printf("Error AddProcess /proc - %s\n", err)
 		os.Exit(1)
 	}
@@ -218,6 +216,7 @@ func (job *Job) Start() error {
 		// This prevents concurrency issues when a user calls Start(), the command quickly exits (updating the
 		// process state), and the user invokes Status().
 		processState, err := job.cmd.Process.Wait()
+
 		job.mutex.Lock()
 		defer job.mutex.Unlock()
 

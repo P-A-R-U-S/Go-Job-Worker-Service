@@ -57,14 +57,14 @@ func CreateCGroup(cgroupName string) (err error) {
 
 	// create a directory structure like /sys/fs/cgroup/<uuid>
 	log.Printf("create cgroup:%s", cgroupDir)
-	if err := os.Mkdir(cgroupDir, FILE_MODE_WEB); err != nil {
+	if err := os.Mkdir(cgroupDir, FILE_MODE_EVERYONE); err != nil {
 		log.Printf("error creating new control group: %s", err)
 		return fmt.Errorf("error creating new control group: %w", err)
 	}
 	// create a directory structure like /sys/fs/cgroup/<uuid>/tasks
 	cgroupTasksDir := filepath.Join(cgroupDir, "tasks")
 	log.Printf("create cgroup/tasks:%s", cgroupTasksDir)
-	if err := os.MkdirAll(cgroupTasksDir, FILE_MODE_WEB); err != nil {
+	if err := os.MkdirAll(cgroupTasksDir, FILE_MODE_EVERYONE); err != nil {
 		log.Printf("error creating new control group tasjs: %s", err)
 		return fmt.Errorf("error creating new control group tasjs: %w", err)
 	}
