@@ -179,16 +179,33 @@ func (job *Job) Start() error {
 		UseCgroupFD: true,
 	}
 
+	cleanCGroup := make(chan bool, 1)
+	go func() {
+		select {
+		case <-cleanCGroup:
+			{
+				// do not close the cgroup.procs file until after the process has exited
+				if err := ns.DeleteCGroup(job.getCGroupName()); err != nil {
+					log.Printf("error closing cgroup: %s\n", err)
+					job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error closing cgroup: %w\n", err))
+				}
+			}
+		}
+	}()
+
 	err := ns.CreateCGroup(job.getCGroupName())
 	if err != nil {
+		cleanCGroup <- true
 		return fmt.Errorf("error creating cgroup: %w", err)
 	}
 
 	if err = ns.AddResourceControl(job.getCGroupName(), ns.CPU_WEIGHT_File, strconv.Itoa(int(job.config.CPU*100))); err != nil {
+		cleanCGroup <- true
 		log.Printf("could not add resources into controller:%s, %v", ns.CPU_WEIGHT_File, err)
 		return fmt.Errorf("error starting command: %w", err)
 	}
 	if err = ns.AddResourceControl(job.getCGroupName(), ns.MEMORY_HIGH_File, strconv.FormatInt(job.config.MemBytes, 10)); err != nil {
+		cleanCGroup <- true
 		return fmt.Errorf("could not add resources into controller:%s, %v", ns.MEMORY_HIGH_File, err)
 	}
 	//if err = ns.AddResourceControl(cgroupName, ns.IO_WEIGHT_File, strconv.FormatInt(job.config.IOBytesPerSecond, 10)); err != nil {
@@ -197,28 +214,32 @@ func (job *Job) Start() error {
 
 	//provide the file descriptor to cmd.Run so that it can add the new PID to the control group
 	if err = ns.AddProcess(job.getCGroupName(), cmd); err != nil {
+		cleanCGroup <- true
 		return fmt.Errorf("Error AddProcess /proc - %w\n", err)
 	}
 
+	unmount := make(chan bool, 1)
+	go func() {
+		select {
+		case <-unmount:
+			{
+				if err := ns.UnmountProc(); err != nil {
+					log.Printf("error unmounting /proc - %s\n", err)
+					job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error unmounting /proc - %w\n", err))
+				}
+			}
+		}
+	}()
+
 	if err = ns.MountProc(); err != nil {
+		unmount <- true
 		return fmt.Errorf("Error mounting /proc - %w\n", err)
 	}
 
 	log.Printf("starting job:%s, cmd:%s", job, cmd.String())
 	if err = cmd.Start(); err != nil {
-		defer func() {
-			if err = ns.UnmountProc(); err != nil {
-				log.Printf("error unmounting /proc - %s\n", err)
-				job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error unmounting /proc - %w\n", err))
-			}
-		}()
-		defer func() {
-			// do not close the cgroup.procs file until after the process has exited
-			if err = ns.DeleteCGroup(job.getCGroupName()); err != nil {
-				log.Printf("error closing cgroup: %s\n", err)
-				job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error closing cgroup: %w\n", err))
-			}
-		}()
+		cleanCGroup <- true
+		unmount <- true
 		return fmt.Errorf("error starting command: %w", err)
 	}
 	job.cmd = cmd
@@ -238,21 +259,12 @@ func (job *Job) Start() error {
 		job.mutex.Lock()
 		defer job.mutex.Unlock()
 
-		// at this stage job in completed (successfully or not we can detect from checking job.exitReason )
+		// at this stage job in completed (successfully or not we can detect from checking job.exitReason and isTerminated )
 		job.isCompleted = true
 
 		defer func() {
-			if err = ns.UnmountProc(); err != nil {
-				log.Printf("error unmounting /proc - %s\n", err)
-				job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error unmounting /proc - %w\n", err))
-			}
-		}()
-		defer func() {
-			// do not close the cgroup.procs file until after the process has exited
-			if err = ns.DeleteCGroup(job.getCGroupName()); err != nil {
-				log.Printf("error closing cgroup: %s\n", err)
-				job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error closing cgroup: %w\n", err))
-			}
+			cleanCGroup <- true
+			unmount <- true
 		}()
 
 		if err != nil {
