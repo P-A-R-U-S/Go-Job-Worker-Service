@@ -8,7 +8,7 @@ import (
 )
 
 func Test_Job_Running(t *testing.T) {
-	t.Parallel()
+	//t.Parallel()
 
 	config := JobConfig{
 		Command:          "echo",
@@ -54,7 +54,7 @@ func Test_Job_Running(t *testing.T) {
 func Test_Job_Prevents_NetworkRequests(t *testing.T) {
 	// Prove that the job-executor binary is not able to make network requests by showing that ping
 	// to localhost fails since the loopback device is not turned on.
-	t.Parallel()
+	//t.Parallel()
 	t.Skip()
 
 	config := JobConfig{
@@ -99,7 +99,7 @@ func Test_Job_Prevents_NetworkRequests(t *testing.T) {
 }
 
 func Test_Job_Stopping_Long_Lived_Command(t *testing.T) {
-	t.Parallel()
+	//t.Parallel()
 
 	config := JobConfig{
 		//Command:   "/bin/bash",
@@ -167,7 +167,7 @@ func Test_Job_Stopping_Long_Lived_Command(t *testing.T) {
 }
 
 func Test_Job_IOLimits(t *testing.T) {
-	t.Parallel()
+	//t.Parallel()
 	t.Skip()
 
 	config := JobConfig{
