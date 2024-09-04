@@ -37,8 +37,7 @@ var (
 func AddProcess(cgroupName string, cmd *exec.Cmd) error {
 	// Add job's process to cgroup
 	cgroupDir := GetCGroupPath(cgroupName)
-
-	fd, err := syscall.Open(cgroupDir, os.O_RDWR, 0)
+	fd, err := syscall.Open(filepath.Join(cgroupDir, "cgroup.procs"), os.O_RDWR, 0)
 	if err != nil {
 		return err
 	}

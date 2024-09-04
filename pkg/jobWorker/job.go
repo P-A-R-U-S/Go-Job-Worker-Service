@@ -188,11 +188,11 @@ func (job *Job) Start() error {
 	//	return fmt.Errorf("could not add resources into controller:%s, %v", ns.IO_WEIGHT_File, err)
 	//}
 
-	// provide the file descriptor to cmd.Run so that it can add the new PID to the control group
-	//if err = ns.AddProcess(cgroupName, cmd); err != nil {
-	//	log.Printf("Error AddProcess /proc - %s\n", err)
-	//	os.Exit(1)
-	//}
+	//provide the file descriptor to cmd.Run so that it can add the new PID to the control group
+	if err = ns.AddProcess(cgroupName, cmd); err != nil {
+		log.Printf("Error AddProcess /proc - %s\n", err)
+		os.Exit(1)
+	}
 
 	if err = ns.MountProc(); err != nil {
 		log.Printf("Error mounting /proc - %s\n", err)
