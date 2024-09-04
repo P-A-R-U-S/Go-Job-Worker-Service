@@ -179,15 +179,15 @@ func (job *Job) Start() error {
 	}
 
 	if err = ns.AddResourceControl(cgroupName, ns.CPU_WEIGHT_File, strconv.Itoa(int(job.config.CPU*100))); err != nil {
-		log.Printf("could not add resources into conroller:%s, %v", ns.CPU_WEIGHT_File, err)
+		log.Printf("could not add resources into controller:%s, %v", ns.CPU_WEIGHT_File, err)
 		return fmt.Errorf("error starting command: %w", err)
 	}
 	if err = ns.AddResourceControl(cgroupName, ns.MEMORY_HIGH_File, strconv.FormatInt(job.config.MemBytes, 10)); err != nil {
-		return fmt.Errorf("could not add resources into conroller:%s, %v", ns.MEMORY_HIGH_File, err)
+		return fmt.Errorf("could not add resources into controller:%s, %v", ns.MEMORY_HIGH_File, err)
 	}
-	if err = ns.AddResourceControl(cgroupName, ns.IO_WEIGHT_File, strconv.FormatInt(job.config.IOBytesPerSecond, 10)); err != nil {
-		return fmt.Errorf("could not add resources into conroller:%s, %v", ns.IO_WEIGHT_File, err)
-	}
+	//if err = ns.AddResourceControl(cgroupName, ns.IO_WEIGHT_File, strconv.FormatInt(job.config.IOBytesPerSecond, 10)); err != nil {
+	//	return fmt.Errorf("could not add resources into controller:%s, %v", ns.IO_WEIGHT_File, err)
+	//}
 	// open the cgroup.procs file so cmd.Run can automatically add the new PID to the control group
 	cgroupTasksDir := filepath.Join(ns.GetCGroupPath(cgroupName), "tasks")
 	// provide the file descriptor to cmd.Run so that it can add the new PID to the control group

@@ -100,7 +100,6 @@ func Test_Job_Prevents_NetworkRequests(t *testing.T) {
 
 func Test_Job_Stopping_Long_Lived_Command(t *testing.T) {
 	t.Parallel()
-	t.Skip()
 
 	config := JobConfig{
 		//Command:   "/bin/bash",
