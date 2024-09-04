@@ -190,13 +190,11 @@ func (job *Job) Start() error {
 
 	//provide the file descriptor to cmd.Run so that it can add the new PID to the control group
 	if err = ns.AddProcess(cgroupName, cmd); err != nil {
-		log.Printf("Error AddProcess /proc - %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("Error AddProcess /proc - %w\n", err)
 	}
 
 	if err = ns.MountProc(); err != nil {
-		log.Printf("Error mounting /proc - %s\n", err)
-		os.Exit(1)
+		return fmt.Errorf("Error mounting /proc - %w\n", err)
 	}
 
 	log.Printf("starting job:%s, cmd:%s", job, cmd.String())
