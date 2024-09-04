@@ -199,7 +199,7 @@ func (job *Job) Start() error {
 		os.Exit(1)
 	}
 
-	log.Printf("starting job:%s", job)
+	log.Printf("starting job:%s, cmd:%s", job, cmd.String())
 	if err = cmd.Start(); err != nil {
 		return fmt.Errorf("error starting command: %w", err)
 	}
