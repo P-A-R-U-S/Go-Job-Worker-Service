@@ -6,12 +6,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"syscall"
 )
 
 const (
-	CPU_PERIOD = 1_000_000
+	CPU_WEIGHT_File  = "cpu.weight"
+	MEMORY_HIGH_File = "memory.high"
+	IO_WEIGHT_File   = "io.weight"
+
 	/*
 		Common Permission Usages
 
@@ -31,67 +33,12 @@ var (
 	rootCgroupPath = "/sys/fs/cgroup"
 )
 
-// groupPath returns a given cgroup's directory path identified by name
-func GetCGroupPath(cgroup string) string {
-	return filepath.Join(rootCgroupPath, cgroup)
-}
-
-// CreateCGroup creates a new cgroup with the given cpu, io, and memory limits.
-func CreateCGroup(cgroupDir string, rootDeviceMajMin string, cpu float64, ioInBytes int64, memoryInBytes int64) error {
-	// create a directory structure like /sys/fs/cgroup/<uuid>
-	log.Printf("create cgroup:%s", cgroupDir)
-	if err := os.Mkdir(cgroupDir, FILE_MODE_WEB); err != nil {
-		log.Printf("error creating new control group: %s", err)
-	}
-
-	// create a directory structure like /sys/fs/cgroup/<uuid>/tasks
-	cgroupTasksDir := filepath.Join(cgroupDir, "tasks")
-	log.Printf("create cgroup/tasks:%s", cgroupTasksDir)
-	if err := os.MkdirAll(cgroupTasksDir, FILE_MODE_WEB); err != nil {
-		log.Printf("error creating new control group tasjs: %s", err)
-		//return fmt.Errorf("error creating new control group tasjs: %w", err)
-	}
-
-	// instruct the cgroup subtree to enable cpu, io, and memory controllers
-	log.Printf("write into:%s", filepath.Join(cgroupDir, "cgroup.subtree_control"))
-	if err := os.WriteFile(filepath.Join(cgroupDir, "cgroup.subtree_control"), []byte("+cpu +io +memory"), FILE_MODE_WEB); err != nil {
-		log.Printf("error writing cgroup.subtree_control: %s", err)
-		//return fmt.Errorf("error writing cgroup.subtree_control: %w", err)
-	}
-
-	cpuQuota := int(cpu * float64(CPU_PERIOD))
-	cpuMaxContent := fmt.Sprintf("%d %d", cpuQuota, CPU_PERIOD)
-
-	log.Printf("write into:%s", filepath.Join(cgroupTasksDir, "cpu.max"))
-	if err := os.WriteFile(filepath.Join(cgroupTasksDir, "cpu.max"), []byte(cpuMaxContent), FILE_MODE_WEB); err != nil {
-		log.Printf("error writing cpu.max: %s", err)
-		//return fmt.Errorf("error writing cpu.max: %w", err)
-	}
-
-	log.Printf("write into:%s", filepath.Join(cgroupTasksDir, "memory.max"))
-	if err := os.WriteFile(filepath.Join(cgroupTasksDir, "memory.max"), []byte(strconv.FormatInt(memoryInBytes, 10)), FILE_MODE_WEB); err != nil {
-		log.Printf("error writing memory.max: %s", err)
-		//return fmt.Errorf("error writing memory.max: %w", err)
-	}
-
-	// TODO/Future Consideration: add support for specifying rbps, wbps, riops, and wiops for a list of devices
-	formattedIOInBytes := strconv.FormatInt(ioInBytes, 10)
-	ioMaxContent := fmt.Sprintf("%s rbps=%s wbps=%s riops=max wiops=max", rootDeviceMajMin, formattedIOInBytes, formattedIOInBytes)
-
-	log.Printf("write into:%s", filepath.Join(cgroupTasksDir, "io.max"))
-	if err := os.WriteFile(filepath.Join(cgroupTasksDir, "io.max"), []byte(ioMaxContent), FILE_MODE_WEB); err != nil {
-		log.Printf("error writing memory.max: %s", err)
-		//return fmt.Errorf("error writing io.max: %w", err)
-	}
-
-	return nil
-}
-
 // AddProcess mutates the given cmd to instruct GO to add the PID of the started process to a given cgroup
-func AddProcess(cgroupTasksDir string, cmd *exec.Cmd) (*os.File, error) {
+func AddProcess(cgroupName string, cmd *exec.Cmd) (*os.File, error) {
 	// Add job's process to cgroup
-	//f, err := syscall.Open(GetCGroupPath(cgroupTasksDir), os.O_RDWR, 0)
-	f, err := os.OpenFile(cgroupTasksDir, os.O_RDWR, 0) //TODO: other possible options to get file description. Need to check what is most optimal or better based on context
+	cgroupDir := GetCGroupPath(cgroupName)
+
+	f, err := os.OpenFile(cgroupDir, os.O_RDWR, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -103,10 +50,33 @@ func AddProcess(cgroupTasksDir string, cmd *exec.Cmd) (*os.File, error) {
 	return f, nil
 }
 
-// CleanupCGroup removes the cgroup directory and all of its contents.
-func CleanupCGroup(cgroupDir string) error {
-	cgroupTasksDir := filepath.Join(cgroupDir, "tasks")
+// CreateCGroup creates a directory in the cgroup root path to signal cgroup to create a group
+// TODO in production we could check here the cgroup was created correctly, such as checking cgroup.controllers file for supported controllers
+func CreateCGroup(cgroupName string) (err error) {
+	cgroupDir := GetCGroupPath(cgroupName)
 
+	// create a directory structure like /sys/fs/cgroup/<uuid>
+	log.Printf("create cgroup:%s", cgroupDir)
+	if err := os.Mkdir(cgroupDir, FILE_MODE_WEB); err != nil {
+		log.Printf("error creating new control group: %s", err)
+		return fmt.Errorf("error creating new control group: %w", err)
+	}
+	// create a directory structure like /sys/fs/cgroup/<uuid>/tasks
+	cgroupTasksDir := filepath.Join(cgroupDir, "tasks")
+	log.Printf("create cgroup/tasks:%s", cgroupTasksDir)
+	if err := os.MkdirAll(cgroupTasksDir, FILE_MODE_WEB); err != nil {
+		log.Printf("error creating new control group tasjs: %s", err)
+		return fmt.Errorf("error creating new control group tasjs: %w", err)
+	}
+	return nil
+}
+
+// DeleteCGroup deletes a cgroup's directory signalling cgroup to delete the group
+// TODO in production before deleting a group we could check cgroup.events to ensure no processes are still running in their cgroup
+func DeleteCGroup(cgroupName string) error {
+	cgroupDir := GetCGroupPath(cgroupName)
+
+	cgroupTasksDir := filepath.Join(cgroupDir, "tasks")
 	log.Printf("remove cgroup/tasks:%s", cgroupTasksDir)
 	if err := os.RemoveAll(cgroupTasksDir); err != nil {
 		return fmt.Errorf("error removing cgroup tasks directory: %w", err)
@@ -116,6 +86,25 @@ func CleanupCGroup(cgroupDir string) error {
 	if err := os.RemoveAll(cgroupDir); err != nil {
 		return fmt.Errorf("error removing cgroup directory: %w", err)
 	}
-
 	return nil
 }
+
+// AddResourceControl updates the resource control interface file for a given cgroup using JobOpts. The
+// three currently supported are CPU, memory and IO
+func AddResourceControl(cgroupName string, controller string, value string) (err error) {
+	if err = os.WriteFile(filepath.Join(GetCGroupPath(cgroupName), controller), []byte(value), FILE_MODE_EVERYONE); err != nil {
+		return err
+	}
+	return nil
+}
+
+// GetCGroupPath returns a given cgroup's directory path identified by name
+func GetCGroupPath(cgroupName string) string {
+	return filepath.Join(rootCgroupPath, cgroupName)
+}
+
+const (
+	KB int64 = 1024
+	MB       = KB * 1024
+	GB       = MB * 1024
+)

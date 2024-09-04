@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -136,79 +137,70 @@ func (job *Job) Start() error {
 	cmd.Stderr = job.output
 	cmd.Stdout = job.output
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		// CLONE_NEWPID: creates a new PID namespace preventing the process from seeing/killing host processes
-		// CLONE_NEWNET: creates a new network namespace preventing the process from accessing the internet or local network
-		Cloneflags: syscall.CLONE_NEWPID | syscall.CLONE_NEWNS | syscall.CLONE_NEWNET,
-		// CLONE_NEWNS: creates a new mount namespace preventing the process from impacting host mounts
+		// CLONE_NEWPID:  creates a new PID namespace preventing the process from seeing/killing host processes
+		// CLONE_NEWNET:  creates a new network namespace preventing the process from accessing the internet or local network
+		// CLONE_NEWNS:   creates a new mount namespace preventing the process from impacting host mounts
+		// CLONE_NEWUTS:  creates a new UTS namespaces provide isolation between two system identifiers: the hostname and the NIS domain name
+		// CLONE_NEWPID:  crates new PID namespaces isolate the process ID number space, meaning that processes in different PID namespaces can have the same PID
+		// CLONE_NEWUSER: creates new namespaces to isolate security-related identifiers and attributes, in particular, user IDs and group IDs
+		Cloneflags: syscall.CLONE_NEWNS |
+			syscall.CLONE_NEWIPC |
+			syscall.CLONE_NEWNET |
+			syscall.CLONE_NEWUTS |
+			syscall.CLONE_NEWPID |
+			syscall.CLONE_NEWUSER,
+		UidMappings: []syscall.SysProcIDMap{
+			{
+				ContainerID: 0,
+				HostID:      os.Getuid(),
+				Size:        1,
+			},
+		},
+		GidMappings: []syscall.SysProcIDMap{
+			{
+				ContainerID: 0,
+				HostID:      os.Getgid(),
+				Size:        1,
+			},
+		},
 		// Also, enables mounting a new proc filesystem so that command such as `ps -ef` only see the processes in the PID namespace
 		Unshareflags: syscall.CLONE_NEWNS,
-		// instruct cmd.Run to use the control group file descriptor, so that JobExecutorPath does not
+		// instruct cmd.Run to use the control group file descriptor, so that Job Command does not
 		// have to manually add the new PID to the control group
 		UseCgroupFD: true,
 	}
 
-	//cmd.SysProcAttr = &syscall.SysProcAttr{
-	//	// CLONE_NEWPID:  creates a new PID namespace preventing the process from seeing/killing host processes
-	//	// CLONE_NEWNET:  creates a new network namespace preventing the process from accessing the internet or local network
-	//	// CLONE_NEWNS:   creates a new mount namespace preventing the process from impacting host mounts
-	//	// CLONE_NEWUTS:  creates a new UTS namespaces provide isolation between two system identifiers: the hostname and the NIS domain name
-	//	// CLONE_NEWPID:  crates new PID namespaces isolate the process ID number space, meaning that processes in different PID namespaces can have the same PID
-	//	// CLONE_NEWUSER: creates new namespaces to isolate security-related identifiers and attributes, in particular, user IDs and group IDs
-	//	Cloneflags: syscall.CLONE_NEWNS |
-	//		syscall.CLONE_NEWIPC |
-	//		syscall.CLONE_NEWNET |
-	//		syscall.CLONE_NEWUTS |
-	//		syscall.CLONE_NEWPID |
-	//		syscall.CLONE_NEWUSER,
-	//	UidMappings: []syscall.SysProcIDMap{
-	//		{
-	//			ContainerID: 0,
-	//			HostID:      os.Getuid(),
-	//			Size:        1,
-	//		},
-	//	},
-	//	GidMappings: []syscall.SysProcIDMap{
-	//		{
-	//			ContainerID: 0,
-	//			HostID:      os.Getgid(),
-	//			Size:        1,
-	//		},
-	//	},
-	//	// Also, enables mounting a new proc filesystem so that command such as `ps -ef` only see the processes in the PID namespace
-	//	Unshareflags: syscall.CLONE_NEWNS,
-	//	// instruct cmd.Run to use the control group file descriptor, so that Job Command does not
-	//	// have to manually add the new PID to the control group
-	//	UseCgroupFD: true,
-	//}
-
 	formatedUUID := strings.Replace(job.UUID.String(), "-", "", -1)
 
 	cgroupName := formatedUUID
-	cgroupDir := ns.GetCGroupPath(cgroupName)
-
-	err := ns.CreateCGroup(cgroupDir, job.config.RootPhysicalDevice, job.config.CPU, job.config.IOBytesPerSecond, job.config.MemBytes)
+	err := ns.CreateCGroup(cgroupName)
 	if err != nil {
 		return fmt.Errorf("error creating cgroup: %w", err)
 	}
 
+	if err = ns.AddResourceControl(cgroupName, ns.CPU_WEIGHT_File, strconv.Itoa(int(job.config.CPU*100))); err != nil {
+		log.Printf("could not add resources into conroller:%s, %v", ns.CPU_WEIGHT_File, err)
+		return fmt.Errorf("error starting command: %w", err)
+	}
+	if err = ns.AddResourceControl(cgroupName, ns.MEMORY_HIGH_File, strconv.FormatInt(job.config.MemBytes, 10)); err != nil {
+		return fmt.Errorf("could not add resources into conroller:%s, %v", ns.MEMORY_HIGH_File, err)
+	}
+	if err = ns.AddResourceControl(cgroupName, ns.IO_WEIGHT_File, strconv.FormatInt(job.config.IOBytesPerSecond, 10)); err != nil {
+		return fmt.Errorf("could not add resources into conroller:%s, %v", ns.IO_WEIGHT_File, err)
+	}
 	// open the cgroup.procs file so cmd.Run can automatically add the new PID to the control group
-	cgroupTasksDir := filepath.Join(cgroupDir, "tasks")
+	cgroupTasksDir := filepath.Join(ns.GetCGroupPath(cgroupName), "tasks")
 	// provide the file descriptor to cmd.Run so that it can add the new PID to the control group
 	var procsFile *os.File
 	if procsFile, err = ns.AddProcess(cgroupTasksDir, cmd); err != nil {
-		fmt.Printf("Error AddProcess /proc - %s\n", err)
+		log.Printf("Error AddProcess /proc - %s\n", err)
 		os.Exit(1)
 	}
 
 	if err = ns.MountProc(); err != nil {
-		fmt.Printf("Error mounting /proc - %s\n", err)
+		log.Printf("Error mounting /proc - %s\n", err)
 		os.Exit(1)
 	}
-
-	//if err := ns.PivotRoot(rootfs); err != nil {
-	//	fmt.Printf("Error running pivot_root - %s\n", err)
-	//	os.Exit(1)
-	//}
 
 	log.Printf("starting job:%s", job)
 	if err = cmd.Start(); err != nil {
@@ -255,7 +247,7 @@ func (job *Job) Start() error {
 		}
 
 		// do not close the cgroup.procs file until after the process has exited
-		if err = ns.CleanupCGroup(cgroupName); err != nil {
+		if err = ns.DeleteCGroup(cgroupName); err != nil {
 			job.status.ExitReason = job.status.ExitReason + fmt.Sprintf("error closing cgroup: %s\n", err)
 		}
 

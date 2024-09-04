@@ -7,9 +7,7 @@ import (
 )
 
 // CommandOutput implements io.Closer and io.Writer and implement a buffer
-//
-//	that can write and read from multiple goroutines concurrently.
-//
+//				that can write and read from multiple goroutines concurrently.
 // Note should not be created directly, but instead by calling NewOutput.
 
 var (
