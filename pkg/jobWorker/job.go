@@ -131,11 +131,10 @@ func (job *Job) Start() error {
 		return ErrJobAlreadyStarted
 	}
 
-	cmd := exec.Command(job.config.Command, job.config.Arguments...)
+	cmd := exec.Command("/bin/bash") //exec.Command(job.config.Command, job.config.Arguments...)
 	// combine the stdout and stderr so that the stdout and stderr are combined in the order they are written
 	cmd.Stderr = job.output
 	cmd.Stdout = job.output
-	cmd.Path = "/bin/bash"
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		// CLONE_NEWPID:  creates a new PID namespace preventing the process from seeing/killing host processes
 		// CLONE_NEWNET:  creates a new network namespace preventing the process from accessing the internet or local network
