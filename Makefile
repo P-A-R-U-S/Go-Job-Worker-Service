@@ -1,7 +1,8 @@
 run_test_cgroup:
 	go mod tidy
 	gofmt -w pkg/jobWorker/namespaces/*.go
-	go test -v -race pkg/jobWorker/namespaces/*.go -run "^Test_CGroup"
+	# "to create cgroup we need root permission"
+	sudo go test -v -race pkg/jobWorker/namespaces/*.go -run "^Test_CGroup"
 
 run_test_output:
 	go mod tidy
