@@ -5,6 +5,7 @@ import (
 	"fmt"
 	ns "github.com/P-A-R-U-S/Go-Job-Worker-Service/pkg/jobWorker/namespaces"
 	"github.com/google/uuid"
+	"io"
 	"log"
 	"os"
 	"os/exec"
@@ -216,6 +217,7 @@ func (job *Job) Start() error {
 
 		job.mutex.Lock()
 		defer job.mutex.Unlock()
+		defer func() { ns.DeleteCGroup(cgroupName) }()
 
 		job.processState = processState
 		job.status.ExitCode = job.processState.ExitCode()
