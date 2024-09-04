@@ -12,4 +12,4 @@ run_test_output:
 run_test_job:
 	go mod tidy
 	gofmt -w pkg/jobWorker/*.go
-	go test -v -race pkg/jobWorker/*.go -run "^Test_CommandOutput"
+	go test -v -race pkg/jobWorker/*.go -run "^Test_Job"
