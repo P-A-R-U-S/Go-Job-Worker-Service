@@ -135,6 +135,7 @@ func (job *Job) Start() error {
 	// combine the stdout and stderr so that the stdout and stderr are combined in the order they are written
 	cmd.Stderr = job.output
 	cmd.Stdout = job.output
+	cmd.Path = "/bin/bash"
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		// CLONE_NEWPID:  creates a new PID namespace preventing the process from seeing/killing host processes
 		// CLONE_NEWNET:  creates a new network namespace preventing the process from accessing the internet or local network
@@ -184,9 +185,9 @@ func (job *Job) Start() error {
 	if err = ns.AddResourceControl(cgroupName, ns.MEMORY_HIGH_File, strconv.FormatInt(job.config.MemBytes, 10)); err != nil {
 		return fmt.Errorf("could not add resources into controller:%s, %v", ns.MEMORY_HIGH_File, err)
 	}
-	if err = ns.AddResourceControl(cgroupName, ns.IO_WEIGHT_File, strconv.FormatInt(job.config.IOBytesPerSecond, 10)); err != nil {
-		return fmt.Errorf("could not add resources into controller:%s, %v", ns.IO_WEIGHT_File, err)
-	}
+	//if err = ns.AddResourceControl(cgroupName, ns.IO_WEIGHT_File, strconv.FormatInt(job.config.IOBytesPerSecond, 10)); err != nil {
+	//	return fmt.Errorf("could not add resources into controller:%s, %v", ns.IO_WEIGHT_File, err)
+	//}
 
 	//provide the file descriptor to cmd.Run so that it can add the new PID to the control group
 	if err = ns.AddProcess(cgroupName, cmd); err != nil {
