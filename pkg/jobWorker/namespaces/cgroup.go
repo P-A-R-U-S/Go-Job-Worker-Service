@@ -43,10 +43,8 @@ func AddProcess(cgroupName string, cmd *exec.Cmd) error {
 		return err
 	}
 	// This is where clone args and namespaces for user, PID and fs can be set
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		UseCgroupFD: true,
-		CgroupFD:    fd,
-	}
+	cmd.SysProcAttr.CgroupFD = fd
+
 	return nil
 }
 
