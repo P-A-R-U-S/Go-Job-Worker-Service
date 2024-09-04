@@ -1,5 +1,4 @@
-run_test_namespace:
-	sudo suse
+run_test_cgroup:
 	go mod tidy
 	gofmt -w pkg/jobWorker/namespaces/*.gols
 	go test -v -race pkg/jobWorker/namespaces/*.go -run "^Test_CGroup"
