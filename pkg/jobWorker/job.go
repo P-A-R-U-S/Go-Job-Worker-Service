@@ -131,7 +131,7 @@ func (job *Job) Start() error {
 		return ErrJobAlreadyStarted
 	}
 
-	cmd := exec.Command("/bin/bash") //exec.Command(job.config.Command, job.config.Arguments...)
+	cmd := exec.Command(job.config.Command, job.config.Arguments...)
 	// combine the stdout and stderr so that the stdout and stderr are combined in the order they are written
 	cmd.Stderr = job.output
 	cmd.Stdout = job.output
