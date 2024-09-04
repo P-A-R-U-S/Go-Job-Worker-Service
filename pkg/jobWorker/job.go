@@ -206,6 +206,19 @@ func (job *Job) Start() error {
 
 	log.Printf("starting job:%s, cmd:%s", job, cmd.String())
 	if err = cmd.Start(); err != nil {
+		defer func() {
+			if err = ns.UnmountProc(); err != nil {
+				log.Printf("error unmounting /proc - %s\n", err)
+				job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error unmounting /proc - %w\n", err))
+			}
+		}()
+		defer func() {
+			// do not close the cgroup.procs file until after the process has exited
+			if err = ns.DeleteCGroup(job.getCGroupName()); err != nil {
+				log.Printf("error closing cgroup: %s\n", err)
+				job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error closing cgroup: %w\n", err))
+			}
+		}()
 		return fmt.Errorf("error starting command: %w", err)
 	}
 	job.cmd = cmd
