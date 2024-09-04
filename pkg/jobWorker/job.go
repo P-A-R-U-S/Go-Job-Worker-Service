@@ -189,8 +189,7 @@ func (job *Job) Start() error {
 	//}
 
 	// provide the file descriptor to cmd.Run so that it can add the new PID to the control group
-	var procsFile *os.File
-	if procsFile, err = ns.AddProcess(cgroupName, cmd); err != nil {
+	if err = ns.AddProcess(cgroupName, cmd); err != nil {
 		log.Printf("Error AddProcess /proc - %s\n", err)
 		os.Exit(1)
 	}
@@ -238,11 +237,6 @@ func (job *Job) Start() error {
 		// block waiting for new output
 		if err = job.output.Close(); err != nil {
 			job.status.ExitReason = job.status.ExitReason + fmt.Sprintf("error closing output: %s\n", err)
-		}
-
-		// do not close the cgroup.procs file until after the process has exited
-		if err = procsFile.Close(); err != nil {
-			job.status.ExitReason = job.status.ExitReason + fmt.Sprintf("error closing cgroup.procs: %s", err)
 		}
 
 		// do not close the cgroup.procs file until after the process has exited

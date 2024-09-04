@@ -34,20 +34,20 @@ var (
 )
 
 // AddProcess mutates the given cmd to instruct GO to add the PID of the started process to a given cgroup
-func AddProcess(cgroupName string, cmd *exec.Cmd) (*os.File, error) {
+func AddProcess(cgroupName string, cmd *exec.Cmd) error {
 	// Add job's process to cgroup
 	cgroupDir := GetCGroupPath(cgroupName)
 
-	f, err := os.OpenFile(cgroupDir, os.O_RDWR, 0)
+	fd, err := syscall.Open(cgroupDir, os.O_RDWR, 0)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// This is where clone args and namespaces for user, PID and fs can be set
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		UseCgroupFD: true,
-		CgroupFD:    int(f.Fd()),
+		CgroupFD:    fd,
 	}
-	return f, nil
+	return nil
 }
 
 // CreateCGroup creates a directory in the cgroup root path to signal cgroup to create a group
