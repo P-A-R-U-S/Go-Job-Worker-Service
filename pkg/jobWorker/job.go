@@ -1,6 +1,7 @@
 package jobWorker
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	ns "github.com/P-A-R-U-S/Go-Job-Worker-Service/pkg/jobWorker/namespaces"
@@ -32,6 +33,7 @@ const (
 	JOB_STATUS_RUNNING     State = "Running"
 	JOB_STATUS_COMPLETED   State = "Completed"
 	JOB_STATUS_TERMINATED  State = "Terminated"
+	STOP_GRACE_PERIOD            = 10 * time.Second
 )
 
 // JobStatus represent current status of the Job
@@ -92,6 +94,9 @@ type Job struct {
 	processState *os.ProcessState
 }
 
+func (job *Job) getCGroupName() string {
+	return strings.Replace(job.UUID.String(), "-", "", -1)
+}
 func (job *Job) String() string {
 	return fmt.Sprintf("id:%s, state:%s with command:%s %s", job.UUID, job.status.State, job.config.Command, strings.Join(job.config.Arguments, " "))
 }
@@ -170,19 +175,16 @@ func (job *Job) Start() error {
 		UseCgroupFD: true,
 	}
 
-	formatedUUID := strings.Replace(job.UUID.String(), "-", "", -1)
-
-	cgroupName := formatedUUID
-	err := ns.CreateCGroup(cgroupName)
+	err := ns.CreateCGroup(job.getCGroupName())
 	if err != nil {
 		return fmt.Errorf("error creating cgroup: %w", err)
 	}
 
-	if err = ns.AddResourceControl(cgroupName, ns.CPU_WEIGHT_File, strconv.Itoa(int(job.config.CPU*100))); err != nil {
+	if err = ns.AddResourceControl(job.getCGroupName(), ns.CPU_WEIGHT_File, strconv.Itoa(int(job.config.CPU*100))); err != nil {
 		log.Printf("could not add resources into controller:%s, %v", ns.CPU_WEIGHT_File, err)
 		return fmt.Errorf("error starting command: %w", err)
 	}
-	if err = ns.AddResourceControl(cgroupName, ns.MEMORY_HIGH_File, strconv.FormatInt(job.config.MemBytes, 10)); err != nil {
+	if err = ns.AddResourceControl(job.getCGroupName(), ns.MEMORY_HIGH_File, strconv.FormatInt(job.config.MemBytes, 10)); err != nil {
 		return fmt.Errorf("could not add resources into controller:%s, %v", ns.MEMORY_HIGH_File, err)
 	}
 	//if err = ns.AddResourceControl(cgroupName, ns.IO_WEIGHT_File, strconv.FormatInt(job.config.IOBytesPerSecond, 10)); err != nil {
@@ -190,7 +192,7 @@ func (job *Job) Start() error {
 	//}
 
 	//provide the file descriptor to cmd.Run so that it can add the new PID to the control group
-	if err = ns.AddProcess(cgroupName, cmd); err != nil {
+	if err = ns.AddProcess(job.getCGroupName(), cmd); err != nil {
 		return fmt.Errorf("Error AddProcess /proc - %w\n", err)
 	}
 
@@ -217,7 +219,19 @@ func (job *Job) Start() error {
 
 		job.mutex.Lock()
 		defer job.mutex.Unlock()
-		defer func() { ns.DeleteCGroup(cgroupName) }()
+		defer func() {
+			if err = ns.UnmountProc(); err != nil {
+				log.Printf("error unmounting /proc - %s\n", err)
+				job.status.ExitReason = job.status.ExitReason + fmt.Sprintf("error unmounting /proc - %s\n", err)
+			}
+		}()
+		defer func() {
+			// do not close the cgroup.procs file until after the process has exited
+			if err = ns.DeleteCGroup(job.getCGroupName()); err != nil {
+				log.Printf("error closing cgroup: %s\n", err)
+				job.status.ExitReason = job.status.ExitReason + fmt.Sprintf("error closing cgroup: %s\n", err)
+			}
+		}()
 
 		job.processState = processState
 		job.status.ExitCode = job.processState.ExitCode()
@@ -237,15 +251,6 @@ func (job *Job) Start() error {
 		// block waiting for new output
 		if err = job.output.Close(); err != nil {
 			job.status.ExitReason = job.status.ExitReason + fmt.Sprintf("error closing output: %s\n", err)
-		}
-
-		// do not close the cgroup.procs file until after the process has exited
-		if err = ns.DeleteCGroup(cgroupName); err != nil {
-			job.status.ExitReason = job.status.ExitReason + fmt.Sprintf("error closing cgroup: %s\n", err)
-		}
-
-		if err = ns.UnmountProc(); err != nil {
-			log.Printf("error unmounting /proc - %s\n", err)
 		}
 	}()
 
@@ -279,12 +284,11 @@ func (job *Job) Stop() error {
 		return fmt.Errorf("error sending SIGTERM: %w", err)
 	}
 
-	cmdWait := make(chan error, 1)
-	timer := time.NewTimer(10 * time.Second)
-	// stop timer in case process exits before 10 seconds
-	// it's safe to stop timer even if stopped already
-	defer timer.Stop()
+	// Set up timeout
+	killCtx, cancel := context.WithTimeout(context.Background(), STOP_GRACE_PERIOD)
+	defer cancel()
 
+	cmdWait := make(chan error, 1)
 	go func() {
 		_, err := job.cmd.Process.Wait()
 		cmdWait <- err
@@ -292,16 +296,20 @@ func (job *Job) Stop() error {
 
 	select {
 	case <-cmdWait:
-		// command exited before timer expired, so nothing to do
-	case <-timer.C:
-		// send SIGKILL if process is still running after timer expires
-		log.Printf("send SIGKILL to job:%s", job)
-		if err := job.cmd.Process.Signal(syscall.SIGKILL); err != nil {
-			return fmt.Errorf("error sending SIGKILL: %w", err)
+		{
+			log.Printf("process compeled :%s", job)
+			// command exited before timer expired, so nothing to do
+		}
+	case <-killCtx.Done():
+		{
+			//send SIGKILL if process is still running after timer expires
+			log.Printf("send SIGKILL to job:%s", job)
+			if err := job.cmd.Process.Signal(syscall.SIGKILL); err != nil {
+				return fmt.Errorf("error sending SIGKILL: %w", err)
+			}
+			job.status.State = JOB_STATUS_TERMINATED
 		}
 	}
-
-	job.status.State = JOB_STATUS_TERMINATED
 
 	return nil
 }
