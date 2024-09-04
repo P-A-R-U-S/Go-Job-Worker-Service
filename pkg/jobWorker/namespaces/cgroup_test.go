@@ -11,13 +11,13 @@ import (
 func Test_CGroup(t *testing.T) {
 	t.Parallel()
 
-	//CPU := 0.5                            // half a CPU core
-	//IOBytesPerSecond := int64(10_000_000) // 10 MB/s
-	//MemBytes := int64(1_000_000_000)      // 1 GB
+	CPU := 0.5 // half a CPU core
+	//IOBytesPerSecond := 100 * MB // 10 MB/s
+	MemBytes := 2 * GB // 2 GB
 
 	cgroupName := "fakecgroup" //strings.Replace(uuid.New().String(), "-", "", -1)
 
-	defer func() { rootCgroupPath = "/sys/fs/cgroup" }()
+	// defer to be sure test cgroup had been removed
 	defer func() {
 		exist, err := isDirExists(GetCGroupPath(cgroupName))
 		if exist && err == nil {
@@ -26,22 +26,17 @@ func Test_CGroup(t *testing.T) {
 		}
 	}()
 
-	// Set up Cgroup to test with test tmp dir
-	// TEST CreateGroup
-	rootCgroupPath = t.TempDir()
-	// defer to be sure test cgroup had been removed
-
 	if err := CreateCGroup(cgroupName); err != nil {
 		t.Errorf("could not create cgroup: %v", err)
 	}
 
-	if err := AddResourceControl(cgroupName, CPU_WEIGHT_File, strconv.Itoa(int(0.5*100))); err != nil {
+	if err := AddResourceControl(cgroupName, CPU_WEIGHT_File, strconv.Itoa(int(CPU*100))); err != nil {
 		t.Errorf("could not add resources into controller:%s, %v", CPU_WEIGHT_File, err)
 	}
-	if err := AddResourceControl(cgroupName, MEMORY_HIGH_File, strconv.FormatInt(2*GB, 10)); err != nil {
+	if err := AddResourceControl(cgroupName, MEMORY_HIGH_File, strconv.FormatInt(MemBytes, 10)); err != nil {
 		t.Errorf("could not add resources into controller:%s, %v", MEMORY_HIGH_File, err)
 	}
-	//if err := AddResourceControl(cgroupName, IO_WEIGHT_File, strconv.FormatInt(100*MB, 10)); err != nil {
+	//if err := AddResourceControl(cgroupName, IO_WEIGHT_File, strconv.FormatInt(IOBytesPerSecond, 10)); err != nil {
 	//	t.Errorf("could not add resources into controller:%s, %v", IO_WEIGHT_File, err)
 	//}
 
