@@ -8,6 +8,8 @@ import (
 )
 
 func Test_Job_Running(t *testing.T) {
+	// There is no problem to run test in parallel, but log output are confusing if you need to investigate anything.
+	// TODO: Uncomment in final version when testing completely done.
 	//t.Parallel()
 
 	config := JobConfig{
@@ -52,11 +54,11 @@ func Test_Job_Running(t *testing.T) {
 }
 
 func Test_Job_Prevents_NetworkRequests(t *testing.T) {
-	// Prove that the job-executor binary is not able to make network requests by showing that ping
-	// to localhost fails since the loopback device is not turned on.
 	//t.Parallel()
 	t.Skip()
 
+	// Prove that the job-executor binary is not able to make network requests by showing that ping
+	// to localhost fails since the loopback device is not turned on.
 	config := JobConfig{
 		Command:          "ping",
 		Arguments:        []string{"-c", "1", "google.com"}, //or localhost as an option {"-c", "1", "127.0.0.1"},
@@ -95,6 +97,37 @@ func Test_Job_Prevents_NetworkRequests(t *testing.T) {
 	expectedPingOutput := "Network is unreachable"
 	if !strings.Contains(string(output), expectedPingOutput) {
 		t.Fatalf("expected output to contain %q, got %q", expectedPingOutput, output)
+	}
+}
+
+func Test_Job_Stop_via_SIGKILL_expected_kill_all_child_processes(t *testing.T) {
+	//t.Parallel()
+
+	config := JobConfig{
+		Command:          "/bin/sh",
+		Arguments:        []string{"-c", "watch date > date.txt"},
+		CPU:              0.5,           // half a CPU core
+		IOBytesPerSecond: 100_000_000,   // 100 MB/s
+		MemBytes:         1_000_000_000, // 1 GB
+	}
+
+	testJob := NewJob(&config)
+
+	// start the job
+	err := testJob.Start()
+	if err != nil {
+		t.Fatalf("error starting job: %v", err)
+	}
+
+	// stop job
+	err = testJob.Stop()
+	if err != nil {
+		t.Errorf("error stopping job: %v", err)
+	}
+
+	status := testJob.Status()
+	if len(status.ExitReason) > 0 {
+		t.Errorf("expected no error return when stopping job with child processed: %s", status.ExitReason)
 	}
 }
 

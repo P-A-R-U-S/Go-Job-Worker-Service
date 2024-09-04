@@ -88,17 +88,25 @@ type Job struct {
 	mutex  sync.Mutex
 	output *CommandOutput
 	config *JobConfig
-	status *JobStatus
 	// processState holds information about the process once it completes
 	// 				and has `nil` until the job has completed running
 	processState *os.ProcessState
+	// isTerminated is true if the job has been started
+	isStarted bool
+	// isCompleted is true if the job has been successfully completed
+	isCompleted bool
+	// isTerminated is true if the job has been terminated via Stop()
+	isTerminated bool
+	// exitReason is the reason the job has errored if it has errored during execution or cleanup
+	exitReason error
 }
 
 func (job *Job) getCGroupName() string {
 	return strings.Replace(job.UUID.String(), "-", "", -1)
 }
+
 func (job *Job) String() string {
-	return fmt.Sprintf("id:%s, state:%s with command:%s %s", job.UUID, job.status.State, job.config.Command, strings.Join(job.config.Arguments, " "))
+	return fmt.Sprintf("id:%s with command:%s %s", job.UUID, job.config.Command, strings.Join(job.config.Arguments, " "))
 }
 
 func NewJob(config *JobConfig) *Job {
@@ -106,10 +114,6 @@ func NewJob(config *JobConfig) *Job {
 	job := &Job{
 		UUID:   uuid.New(),
 		config: config,
-		status: &JobStatus{
-			State:    JOB_STATUS_NOT_STARTED,
-			ExitCode: -1, // TODO: Probably we need to set default exist code e.g. 999999 to avoid confusions.
-		},
 		output: output,
 	}
 	log.Printf("creted job:%s", job)
@@ -133,7 +137,7 @@ func (job *Job) Start() error {
 	}
 
 	// validate job hasn't been run
-	if job.status.State != JOB_STATUS_NOT_STARTED {
+	if job.isStarted {
 		return ErrJobAlreadyStarted
 	}
 
@@ -205,7 +209,7 @@ func (job *Job) Start() error {
 		return fmt.Errorf("error starting command: %w", err)
 	}
 	job.cmd = cmd
-	job.status.State = JOB_STATUS_RUNNING
+	job.isStarted = true
 
 	// run the command in a Goroutine so that Start can return immediately
 	go func() {
@@ -216,41 +220,40 @@ func (job *Job) Start() error {
 		// This prevents concurrency issues when a user calls Start(), the command quickly exits (updating the
 		// process state), and the user invokes Status().
 		processState, err := job.cmd.Process.Wait()
+		job.processState = processState
 
 		job.mutex.Lock()
 		defer job.mutex.Unlock()
+
+		// at this stage job in completed (successfully or not we can detect from checking job.exitReason )
+		job.isCompleted = true
+
 		defer func() {
 			if err = ns.UnmountProc(); err != nil {
 				log.Printf("error unmounting /proc - %s\n", err)
-				job.status.ExitReason = job.status.ExitReason + fmt.Sprintf("error unmounting /proc - %s\n", err)
+				job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error unmounting /proc - %w\n", err))
 			}
 		}()
 		defer func() {
 			// do not close the cgroup.procs file until after the process has exited
 			if err = ns.DeleteCGroup(job.getCGroupName()); err != nil {
 				log.Printf("error closing cgroup: %s\n", err)
-				job.status.ExitReason = job.status.ExitReason + fmt.Sprintf("error closing cgroup: %s\n", err)
+				job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error closing cgroup: %w\n", err))
 			}
 		}()
 
-		job.processState = processState
-		job.status.ExitCode = job.processState.ExitCode()
-		if job.status.State == JOB_STATUS_RUNNING {
-			job.status.State = JOB_STATUS_COMPLETED
-		}
-
 		if err != nil {
-			job.status.ExitReason = job.status.ExitReason + fmt.Sprintf("error running command: %s\n", err)
+			job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error running command: %w\n", err))
 		}
 
 		if err == nil && !job.processState.Success() {
-			job.status.ExitReason = job.status.ExitReason + fmt.Sprintf("error running command: %s\n", &exec.ExitError{ProcessState: job.processState})
+			job.exitReason = errors.Join(job.exitReason, &exec.ExitError{ProcessState: job.processState})
 		}
 
 		// close the output, so that any readers of the output know the process has exited and will no longer
 		// block waiting for new output
 		if err = job.output.Close(); err != nil {
-			job.status.ExitReason = job.status.ExitReason + fmt.Sprintf("error closing output: %s\n", err)
+			job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error closing output: %w\n", err))
 		}
 	}()
 
@@ -261,8 +264,34 @@ func (job *Job) Start() error {
 func (job *Job) Status() *JobStatus {
 	job.mutex.Lock()
 	defer job.mutex.Unlock()
-	log.Printf("get job status:%s", job)
-	return job.status
+
+	if !job.isStarted {
+		return &JobStatus{
+			State:    JOB_STATUS_NOT_STARTED,
+			ExitCode: -1,
+		}
+	}
+
+	if job.isStarted && !job.isCompleted {
+		return &JobStatus{
+			State:    JOB_STATUS_RUNNING,
+			ExitCode: -1,
+		}
+	}
+
+	if job.isTerminated {
+		return &JobStatus{
+			State:      JOB_STATUS_TERMINATED,
+			ExitCode:   job.processState.ExitCode(),
+			ExitReason: job.exitReason.Error(),
+		}
+	}
+
+	return &JobStatus{
+		State:      JOB_STATUS_COMPLETED,
+		ExitCode:   job.processState.ExitCode(),
+		ExitReason: job.exitReason.Error(),
+	}
 }
 
 // Stream returns an OutputReadCloser (implements io.ReadCloser)  that streams the combined stdout and stderr of the Job.
@@ -297,17 +326,18 @@ func (job *Job) Stop() error {
 	select {
 	case <-cmdWait:
 		{
-			log.Printf("process compeled :%s", job)
 			// command exited before timer expired, so nothing to do
+			log.Printf("process compeled :%s", job)
+			job.isCompleted = true
 		}
 	case <-killCtx.Done():
 		{
 			//send SIGKILL if process is still running after timer expires
 			log.Printf("send SIGKILL to job:%s", job)
-			if err := job.cmd.Process.Signal(syscall.SIGKILL); err != nil {
+			if err := syscall.Kill(-job.cmd.Process.Pid, syscall.SIGKILL); err != nil {
 				return fmt.Errorf("error sending SIGKILL: %w", err)
 			}
-			job.status.State = JOB_STATUS_TERMINATED
+			job.isTerminated = true
 		}
 	}
 
