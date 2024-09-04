@@ -261,7 +261,7 @@ func (job *Job) Status() *JobStatus {
 }
 
 // Stream returns an OutputReadCloser that streams the combined stdout and stderr of the Job.
-func (job *Job) Stream() *OutputReadCloser {
+func (job *Job) Stream() io.ReadCloser {
 	log.Printf("get job stream:%s", job)
 	return NewOutputReadCloser(job.output)
 }
