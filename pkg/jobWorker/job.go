@@ -236,7 +236,7 @@ func (job *Job) Start() error {
 	}()
 
 	if err = ns.MountProc(); err != nil {
-		unmount <- true
+		cleanCGroup <- true
 		return fmt.Errorf("Error mounting /proc - %w\n", err)
 	}
 
