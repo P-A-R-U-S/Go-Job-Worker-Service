@@ -27,12 +27,12 @@ func NewOutputReadCloser(output *CommandOutput) *OutputReadCloser {
 //
 //	Wait for changes to the CommandOutput if no content is available to read.
 //	Returns EOF if the CommandOutput is closed and all the content has been read.
-func (outputReadCloser *OutputReadCloser) Read(buffer []byte) (n int, err error) {
-	if outputReadCloser.isClosed {
+func (orc *OutputReadCloser) Read(buffer []byte) (n int, err error) {
+	if orc.isClosed {
 		return 0, ErrReaderClosed
 	}
 
-	if outputReadCloser.output == nil {
+	if orc.output == nil {
 		return 0, ErrOutputMissing
 	}
 
@@ -40,36 +40,36 @@ func (outputReadCloser *OutputReadCloser) Read(buffer []byte) (n int, err error)
 		return 0, nil
 	}
 
-	bytesRead, err := outputReadCloser.output.ReadPartial(buffer, outputReadCloser.readIndex)
+	bytesRead, err := orc.output.ReadPartial(buffer, orc.readIndex)
 	if err != nil {
 		return bytesRead, err
 	}
 
 	// If bytesRead is zero then wait for changes to the Output and read again.
 	if bytesRead == 0 {
-		outputReadCloser.output.Wait(outputReadCloser.readIndex)
+		orc.output.Wait(orc.readIndex)
 
-		bytesRead, err = outputReadCloser.output.ReadPartial(buffer, outputReadCloser.readIndex)
+		bytesRead, err = orc.output.ReadPartial(buffer, orc.readIndex)
 		if err != nil {
 			return bytesRead, err
 		}
 	}
 
-	outputReadCloser.readIndex += int64(bytesRead)
+	orc.readIndex += int64(bytesRead)
 
 	return bytesRead, nil
 }
 
-func (outputReadCloser *OutputReadCloser) Close() error {
-	if outputReadCloser.output == nil {
+func (orc *OutputReadCloser) Close() error {
+	if orc.output == nil {
 		return ErrOutputMissing
 	}
 
-	if outputReadCloser.isClosed {
+	if orc.isClosed {
 		return ErrReaderClosed
 	}
 
-	outputReadCloser.isClosed = true
+	orc.isClosed = true
 
 	return nil
 }

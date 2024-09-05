@@ -30,14 +30,14 @@ func Test_CGroup(t *testing.T) {
 		t.Errorf("could not create cgroup: %v", err)
 	}
 
-	if err := AddResourceControl(cgroupName, CPU_WEIGHT_File, strconv.Itoa(int(CPU*100))); err != nil {
-		t.Errorf("could not add resources into controller:%s, %v", CPU_WEIGHT_File, err)
+	if err := AddResourceControl(cgroupName, CpuWeightFile, strconv.Itoa(int(CPU*100))); err != nil {
+		t.Errorf("could not add resources into controller:%s, %v", CpuWeightFile, err)
 	}
-	if err := AddResourceControl(cgroupName, MEMORY_HIGH_File, strconv.FormatInt(MemBytes, 10)); err != nil {
-		t.Errorf("could not add resources into controller:%s, %v", MEMORY_HIGH_File, err)
+	if err := AddResourceControl(cgroupName, MemoryHighFile, strconv.FormatInt(MemBytes, 10)); err != nil {
+		t.Errorf("could not add resources into controller:%s, %v", MemoryHighFile, err)
 	}
-	//if err := AddResourceControl(cgroupName, IO_WEIGHT_File, strconv.FormatInt(IOBytesPerSecond, 10)); err != nil {
-	//	t.Errorf("could not add resources into controller:%s, %v", IO_WEIGHT_File, err)
+	//if err := AddResourceControl(cgroupName, IoWeightFile, strconv.FormatInt(IOBytesPerSecond, 10)); err != nil {
+	//	t.Errorf("could not add resources into controller:%s, %v", IoWeightFile, err)
 	//}
 
 	// assert cgroup exists

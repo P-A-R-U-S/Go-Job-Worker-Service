@@ -19,7 +19,7 @@ func PivotRoot(rootfs string) error {
 
 	// create rootfs/.pivot_root as path for old_root
 	pivotDir := filepath.Join(rootfs, ".pivot_root")
-	if err := os.Mkdir(pivotDir, FILE_MODE_EVERYONE); err != nil {
+	if err := os.Mkdir(pivotDir, FileModeEveryone); err != nil {
 		return fmt.Errorf("error (syscall.MkdirAll) %s", err)
 	}
 
