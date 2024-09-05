@@ -13,8 +13,8 @@ func Test_Job_Running(t *testing.T) {
 	//t.Parallel()
 
 	config := JobConfig{
-		Command:          "echo",
-		Arguments:        []string{"Hello World"},
+		Command:          "/bin/bash",
+		Arguments:        []string{},
 		CPU:              0.5,           // half a CPU core
 		IOBytesPerSecond: 100_000_000,   // 100 MB/s
 		MemBytes:         1_000_000_000, // 1 GB

@@ -53,17 +53,17 @@ func CreateCGroup(cgroupName string) (err error) {
 	cgroupDir := GetCGroupPath(cgroupName)
 
 	// create a directory structure like /sys/fs/cgroup/<uuid>
-	log.Printf("create cgroup:%s", cgroupDir)
+	log.Printf("create cgroup/<UUID>:%s", cgroupDir)
 	if err := os.Mkdir(cgroupDir, FILE_MODE_WEB); err != nil {
 		log.Printf("error creating new control group: %s", err)
 		return fmt.Errorf("error creating new control group: %w", err)
 	}
 	// create a directory structure like /sys/fs/cgroup/<uuid>/tasks
 	cgroupTasksDir := filepath.Join(cgroupDir, "tasks")
-	log.Printf("create cgroup/tasks:%s", cgroupTasksDir)
+	log.Printf("create cgroup/<UUID>/tasks:%s", cgroupTasksDir)
 	if err := os.MkdirAll(cgroupTasksDir, FILE_MODE_WEB); err != nil {
-		log.Printf("error creating new control group tasjs: %s", err)
-		return fmt.Errorf("error creating new control group tasjs: %w", err)
+		log.Printf("error creating new control group tasks: %s", err)
+		return fmt.Errorf("error creating new control group tasks: %w", err)
 	}
 	return nil
 }
@@ -74,14 +74,16 @@ func DeleteCGroup(cgroupName string) error {
 	cgroupDir := GetCGroupPath(cgroupName)
 
 	cgroupTasksDir := filepath.Join(cgroupDir, "tasks")
-	log.Printf("remove cgroup/tasks:%s", cgroupTasksDir)
+	log.Printf("remove cgroup/<UUID>/tasks:%s", cgroupTasksDir)
 	if err := os.RemoveAll(cgroupTasksDir); err != nil {
-		return fmt.Errorf("error removing cgroup tasks directory: %w", err)
+		log.Printf("error removing cgroup/<UUID>/tasks: %s", err)
+		return fmt.Errorf("error removing cgroup/<UUID>/tasks: %w", err)
 	}
 
 	log.Printf("remove cgroup:%s", cgroupDir)
 	if err := os.RemoveAll(cgroupDir); err != nil {
-		return fmt.Errorf("error removing cgroup directory: %w", err)
+		log.Printf("error removing cgroup/<UUID>: %s", err)
+		return fmt.Errorf("error removing cgroup/<UUID>: %w", err)
 	}
 	return nil
 }

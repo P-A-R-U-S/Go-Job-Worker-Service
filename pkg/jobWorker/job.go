@@ -33,7 +33,10 @@ const (
 	JOB_STATUS_RUNNING     State = "Running"
 	JOB_STATUS_COMPLETED   State = "Completed"
 	JOB_STATUS_TERMINATED  State = "Terminated"
-	STOP_GRACE_PERIOD            = 10 * time.Second
+)
+
+const (
+	STOP_GRACE_PERIOD = 10 * time.Second
 )
 
 // JobStatus represent current status of the Job
@@ -145,6 +148,7 @@ func (job *Job) Start() error {
 	// combine the stdout and stderr so that the stdout and stderr are combined in the order they are written
 	cmd.Stderr = job.output
 	cmd.Stdout = job.output
+
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		// CLONE_NEWPID:  creates a new PID namespace preventing the process from seeing/killing host processes
 		// CLONE_NEWNET:  creates a new network namespace preventing the process from accessing the internet or local network
@@ -208,7 +212,7 @@ func (job *Job) Start() error {
 		cleanCGroup <- true
 		return fmt.Errorf("could not add resources into controller:%s, %v", ns.MEMORY_HIGH_File, err)
 	}
-	//if err = ns.AddResourceControl(cgroupName, ns.IO_WEIGHT_File, strconv.FormatInt(job.config.IOBytesPerSecond, 10)); err != nil {
+	//if err = ns.AddResourceControl(job.getCGroupName(), ns.IO_WEIGHT_File, strconv.FormatInt(job.config.IOBytesPerSecond, 10)); err != nil {
 	//	return fmt.Errorf("could not add resources into controller:%s, %v", ns.IO_WEIGHT_File, err)
 	//}
 
