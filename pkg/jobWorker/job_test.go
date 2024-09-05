@@ -50,7 +50,7 @@ func Test_Job_Running(t *testing.T) {
 	}
 
 	if string(output) != "hello world\n" {
-		t.Fatalf("expected output to be 'hello world\n', got '%s'", output)
+		t.Fatalf("expected output to be 'hello world', got '%s'", output)
 	}
 }
 
@@ -106,6 +106,8 @@ func Test_Job_Prevents_NetworkRequests(t *testing.T) {
 		t.Fatalf("error starting job: %v", err)
 	}
 
+	time.Sleep(5 * time.Second)
+
 	// wait for the job to finish by waiting for io.ReadAll to complete
 	output, err := io.ReadAll(testJob.Stream())
 	if err != nil {
@@ -122,11 +124,11 @@ func Test_Job_Prevents_NetworkRequests(t *testing.T) {
 		t.Errorf("expected job exit code to be 1, got %d", status.ExitCode)
 	}
 
-	if len(status.ExitReason) != 0 {
+	if len(status.ExitReason) == 0 {
 		t.Errorf("expected job exit reason to be set when command errors, but got nil")
 	}
 
-	expectedPingOutput := "Operation not permitted" //"Network is unreachable"
+	expectedPingOutput := "Network is unreachable"
 	if !strings.Contains(string(output), expectedPingOutput) {
 		t.Fatalf("expected output to contain %q, got %q", expectedPingOutput, output)
 	}

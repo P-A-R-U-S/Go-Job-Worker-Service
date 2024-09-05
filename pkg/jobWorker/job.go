@@ -162,17 +162,16 @@ func (job *Job) Start() error {
 	cmd.Stdout = job.output
 
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		//	// CLONE_NEWPID:  creates a new PID namespace preventing the process from seeing/killing host processes
-		//	// CLONE_NEWNET:  creates a new network namespace preventing the process from accessing the internet or local network
-		//	// CLONE_NEWNS:   creates a new mount namespace preventing the process from impacting host mounts
-		//	// CLONE_NEWUTS:  creates a new UTS namespaces provide isolation between two system identifiers: the hostname and the NIS domain name
-		//	// CLONE_NEWPID:  crates new PID namespaces isolate the process ID number space, meaning that processes in different PID namespaces can have the same PID
-		//	// CLONE_NEWUSER: creates new namespaces to isolate security-related identifiers and attributes, in particular, user IDs and group IDs
-		Cloneflags:
-		//syscall.CLONE_NEWNS |
-		//		syscall.CLONE_NEWIPC |
-		//		syscall.CLONE_NEWNET |
-		syscall.CLONE_NEWUTS |
+		// CLONE_NEWPID:  creates a new PID namespace preventing the process from seeing/killing host processes
+		// CLONE_NEWNET:  creates a new network namespace preventing the process from accessing the internet or local network
+		// CLONE_NEWNS:   creates a new mount namespace preventing the process from impacting host mounts
+		// CLONE_NEWUTS:  creates a new UTS namespaces provide isolation between two system identifiers: the hostname and the NIS domain name
+		// CLONE_NEWPID:  crates new PID namespaces isolate the process ID number space, meaning that processes in different PID namespaces can have the same PID
+		// CLONE_NEWUSER: creates new namespaces to isolate security-related identifiers and attributes, in particular, user IDs and group IDs
+		Cloneflags: syscall.CLONE_NEWNS |
+			//		syscall.c |
+			syscall.CLONE_NEWNET |
+			syscall.CLONE_NEWUTS |
 			syscall.CLONE_NEWPID |
 			syscall.CLONE_NEWUSER,
 		UidMappings: []syscall.SysProcIDMap{
@@ -274,6 +273,7 @@ func (job *Job) Start() error {
 		processState, err := job.cmd.Process.Wait()
 		job.processState = processState
 		job.exitCode = processState.ExitCode()
+		job.exitReason = job.cmd.Err
 
 		job.mutex.Lock()
 		defer job.mutex.Unlock()
