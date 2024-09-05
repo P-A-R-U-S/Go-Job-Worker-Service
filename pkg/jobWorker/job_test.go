@@ -87,7 +87,7 @@ func Test_Job_Second_Call_Stop_expected_not_send_SIGKIL_again(t *testing.T) {
 
 func Test_Job_Prevents_NetworkRequests(t *testing.T) {
 	//t.Parallel()
-	t.Skip()
+	//t.Skip()
 
 	// Prove that the job-executor binary is not able to make network requests by showing that ping
 	// to localhost fails since the loopback device is not turned on.
