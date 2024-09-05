@@ -188,7 +188,9 @@ func (job *Job) Start() error {
 				Size:        1,
 			},
 		},
-		//	Setsid: true,
+		// force the child processes to start in theirs own process groups
+		Setsid: true,
+		Pgid:   0,
 		//	// Also, enables mounting a new proc filesystem so that command such as `ps -ef` only see the processes in the PID namespace
 		//	Unshareflags: syscall.CLONE_NEWNS,
 		//	// instruct cmd.Run to use the control group file descriptor, so that Job Command does not
