@@ -371,6 +371,10 @@ func (job *Job) Stop() error {
 		cmdWait <- err
 	}()
 
+	// TODO: At the current implementation Stop method are blocking all other functions
+	//       and waiting when `cmd` terminated or complete execution.
+	//		 But for production looks like we need to fire-and-forget approach and
+	//		 caller do periodically check Status and just leave "Stop" to complete.
 	select {
 	case <-cmdWait:
 		{
