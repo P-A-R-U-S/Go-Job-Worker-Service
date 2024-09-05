@@ -10,10 +10,9 @@ import (
 )
 
 const (
-	CPU_WEIGHT_File  = "cpu.weight"
-	MEMORY_HIGH_File = "memory.high"
-	IO_WEIGHT_File   = "io.weight"
-
+	CpuWeightFile  = "cpu.weight"
+	MemoryHighFile = "memory.high"
+	IoWeightFile   = "io.weight"
 	/*
 		Common Permission Usages
 
@@ -25,8 +24,8 @@ const (
 
 		0655 Only the owner can read and write, but not execute the file. Everyone else can read and execute, but cannot modify the file.
 	*/
-	FILE_MODE_EVERYONE = 0777
-	FILE_MODE_WEB      = 0755 //0o500 = 0o500
+	FileModeEveryone = 0777
+	FileModeWeb      = 0755 //0o500 = 0o500
 )
 
 var (
@@ -54,14 +53,14 @@ func CreateCGroup(cgroupName string) (err error) {
 
 	// create a directory structure like /sys/fs/cgroup/<uuid>
 	log.Printf("create cgroup/<UUID>:%s", cgroupDir)
-	if err := os.Mkdir(cgroupDir, FILE_MODE_WEB); err != nil {
+	if err := os.Mkdir(cgroupDir, FileModeWeb); err != nil {
 		log.Printf("error creating new control group: %s", err)
 		return fmt.Errorf("error creating new control group: %w", err)
 	}
 	// create a directory structure like /sys/fs/cgroup/<uuid>/tasks
 	cgroupTasksDir := filepath.Join(cgroupDir, "tasks")
 	log.Printf("create cgroup/<UUID>/tasks:%s", cgroupTasksDir)
-	if err := os.MkdirAll(cgroupTasksDir, FILE_MODE_WEB); err != nil {
+	if err := os.MkdirAll(cgroupTasksDir, FileModeWeb); err != nil {
 		log.Printf("error creating new control group tasks: %s", err)
 		return fmt.Errorf("error creating new control group tasks: %w", err)
 	}
@@ -91,7 +90,7 @@ func DeleteCGroup(cgroupName string) error {
 // AddResourceControl updates the resource control interface file for a given cgroup using JobOpts. The
 // three currently supported are CPU, memory and IO
 func AddResourceControl(cgroupName string, controller string, value string) (err error) {
-	if err = os.WriteFile(filepath.Join(GetCGroupPath(cgroupName), controller), []byte(value), FILE_MODE_WEB); err != nil {
+	if err = os.WriteFile(filepath.Join(GetCGroupPath(cgroupName), controller), []byte(value), FileModeWeb); err != nil {
 		return err
 	}
 	return nil

@@ -30,14 +30,14 @@ var (
 type State string
 
 const (
-	JOB_STATUS_NOT_STARTED State = "NotStarted"
-	JOB_STATUS_RUNNING     State = "Running"
-	JOB_STATUS_COMPLETED   State = "Completed"
-	JOB_STATUS_TERMINATED  State = "Terminated"
+	JobStatusNotStarted State = "NotStarted"
+	JobStatusRunning    State = "Running"
+	JobStatusCompleted  State = "Completed"
+	JobStatusTerminated State = "Terminated"
 )
 
 const (
-	STOP_GRACE_PERIOD = 10 * time.Second
+	stopGracePeriod = 10 * time.Second
 )
 
 // JobStatus represent current status of the Job
@@ -205,17 +205,17 @@ func (job *Job) Start() error {
 		return fmt.Errorf("error creating cgroup: %w", err)
 	}
 
-	if err = ns.AddResourceControl(job.getCGroupName(), ns.CPU_WEIGHT_File, strconv.Itoa(int(job.config.CPU*100))); err != nil {
+	if err = ns.AddResourceControl(job.getCGroupName(), ns.CpuWeightFile, strconv.Itoa(int(job.config.CPU*100))); err != nil {
 		cleanCGroup <- true
-		log.Printf("could not add resources into controller:%s, %v", ns.CPU_WEIGHT_File, err)
+		log.Printf("could not add resources into controller:%s, %v", ns.CpuWeightFile, err)
 		return fmt.Errorf("error starting command: %w", err)
 	}
-	if err = ns.AddResourceControl(job.getCGroupName(), ns.MEMORY_HIGH_File, strconv.FormatInt(job.config.MemBytes, 10)); err != nil {
+	if err = ns.AddResourceControl(job.getCGroupName(), ns.MemoryHighFile, strconv.FormatInt(job.config.MemBytes, 10)); err != nil {
 		cleanCGroup <- true
-		return fmt.Errorf("could not add resources into controller:%s, %v", ns.MEMORY_HIGH_File, err)
+		return fmt.Errorf("could not add resources into controller:%s, %v", ns.MemoryHighFile, err)
 	}
-	//if err = ns.AddResourceControl(job.getCGroupName(), ns.IO_WEIGHT_File, strconv.FormatInt(job.config.IOBytesPerSecond, 10)); err != nil {
-	//	return fmt.Errorf("could not add resources into controller:%s, %v", ns.IO_WEIGHT_File, err)
+	//if err = ns.AddResourceControl(job.getCGroupName(), ns.IoWeightFile, strconv.FormatInt(job.config.IOBytesPerSecond, 10)); err != nil {
+	//	return fmt.Errorf("could not add resources into controller:%s, %v", ns.IoWeightFile, err)
 	//}
 
 	//provide the file descriptor to cmd.Run so that it can add the new PID to the control group
@@ -298,28 +298,28 @@ func (job *Job) Status() *JobStatus {
 
 	if !job.isStarted {
 		return &JobStatus{
-			State:    JOB_STATUS_NOT_STARTED,
+			State:    JobStatusNotStarted,
 			ExitCode: -1,
 		}
 	}
 
 	if job.isStarted && !job.isCompleted {
 		return &JobStatus{
-			State:    JOB_STATUS_RUNNING,
+			State:    JobStatusRunning,
 			ExitCode: -1,
 		}
 	}
 
 	if job.isTerminated {
 		return &JobStatus{
-			State:      JOB_STATUS_TERMINATED,
+			State:      JobStatusTerminated,
 			ExitCode:   job.processState.ExitCode(),
 			ExitReason: job.exitReason.Error(),
 		}
 	}
 
 	return &JobStatus{
-		State:      JOB_STATUS_COMPLETED,
+		State:      JobStatusCompleted,
 		ExitCode:   job.processState.ExitCode(),
 		ExitReason: job.exitReason.Error(),
 	}
@@ -349,7 +349,7 @@ func (job *Job) Stop() error {
 	}
 
 	// Set up timeout
-	killCtx, cancel := context.WithTimeout(context.Background(), STOP_GRACE_PERIOD)
+	killCtx, cancel := context.WithTimeout(context.Background(), stopGracePeriod)
 	defer cancel()
 
 	cmdWait := make(chan error, 1)
