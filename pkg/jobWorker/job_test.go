@@ -1,6 +1,7 @@
 package jobWorker
 
 import (
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -32,6 +33,60 @@ func Test_Job_Running(t *testing.T) {
 	output, err := io.ReadAll(testJob.Stream())
 	if err != nil {
 		t.Fatalf("error reading output: %v", err)
+	}
+
+	status := testJob.Status()
+
+	if status.State != JOB_STATUS_COMPLETED {
+		t.Errorf("expected job state to be 'Completed', got '%s'", status.State)
+	}
+
+	if status.ExitCode != 0 {
+		t.Errorf("expected job exit code to be 0, got %d", status.ExitCode)
+	}
+
+	if len(status.ExitReason) != 0 {
+		t.Errorf("expected job exit reason to be empty, got %v", status.ExitReason)
+	}
+
+	if string(output) != "hello world\n" {
+		t.Fatalf("expected output to be 'hello world\n', got '%s'", output)
+	}
+}
+
+func Test_Job_Second_Call_Stop_expected_not_send_SIGKIL_again(t *testing.T) {
+	// There is no problem to run test in parallel, but log output are confusing if you need to investigate anything.
+	// TODO: Uncomment in final version when testing completely done.
+	//t.Parallel()
+
+	config := JobConfig{
+		Command:          "echo",
+		Arguments:        []string{"Hello World"},
+		CPU:              0.5,           // half a CPU core
+		IOBytesPerSecond: 100_000_000,   // 100 MB/s
+		MemBytes:         1_000_000_000, // 1 GB
+	}
+
+	testJob := NewJob(&config)
+
+	// start the job
+	err := testJob.Start()
+	if err != nil {
+		t.Fatalf("error starting job: %v", err)
+	}
+
+	// wait for the job to finish by waiting for io.ReadAll to complete
+	output, err := io.ReadAll(testJob.Stream())
+	if err != nil {
+		t.Fatalf("error reading output: %v", err)
+	}
+
+	if err = testJob.Stop(); err != nil {
+		t.Fatalf("error stopping job: %v", err)
+	}
+
+	if err = testJob.Stop(); err == nil || errors.As(err, &ErrJobAlreadyStopped) {
+		t.Fatalf("expected error(ErrJobAlreadyStopped): %v", err)
 	}
 
 	status := testJob.Status()
@@ -135,8 +190,6 @@ func Test_Job_Stopping_Long_Lived_Command(t *testing.T) {
 	//t.Parallel()
 
 	config := JobConfig{
-		//Command:   "/bin/bash",
-		//Arguments: []string{"-c", "sleep 100000"},
 		Command:          "sleep",
 		Arguments:        []string{"100000"},
 		CPU:              0.5,           // half a CPU core

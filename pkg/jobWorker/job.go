@@ -24,6 +24,7 @@ var (
 	ErrInvalidCPU              = errors.New("CPU must be greater than 0")
 	ErrInvalidIOBytesPerSecond = errors.New("IOBytesPerSecond must be greater than 0")
 	ErrInvalidMemBytes         = errors.New("MemBytes must be greater than 0")
+	ErrJobAlreadyStopped       = errors.New("Job already stopped")
 )
 
 type State string
@@ -176,6 +177,7 @@ func (job *Job) Start() error {
 				Size:        1,
 			},
 		},
+		Setsid: true,
 		// Also, enables mounting a new proc filesystem so that command such as `ps -ef` only see the processes in the PID namespace
 		Unshareflags: syscall.CLONE_NEWNS,
 		// instruct cmd.Run to use the control group file descriptor, so that Job Command does not
@@ -183,7 +185,7 @@ func (job *Job) Start() error {
 		UseCgroupFD: true,
 	}
 
-	cleanCGroup := make(chan bool, 1)
+	cleanCGroup := make(chan bool)
 	go func() {
 		select {
 		case <-cleanCGroup:
@@ -222,7 +224,7 @@ func (job *Job) Start() error {
 		return fmt.Errorf("Error AddProcess /proc - %w\n", err)
 	}
 
-	unmount := make(chan bool, 1)
+	unmount := make(chan bool)
 	go func() {
 		select {
 		case <-unmount:
@@ -330,6 +332,10 @@ func (job *Job) Stream() io.ReadCloser {
 }
 
 func (job *Job) Stop() error {
+	if job.isTerminated || job.isCompleted {
+		return ErrJobAlreadyStopped
+	}
+
 	job.mutex.Lock()
 	defer job.mutex.Unlock()
 
