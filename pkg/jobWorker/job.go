@@ -103,10 +103,20 @@ type Job struct {
 	isTerminated bool
 	// exitReason is the reason the job has errored if it has errored during execution or cleanup
 	exitReason error
+	// ExitCode returns the exit code of the exited process, or -1
+	// if the process hasn't exited or was terminated by a signal.
+	exitCode int
 }
 
 func (job *Job) getCGroupName() string {
 	return strings.Replace(job.UUID.String(), "-", "", -1)
+}
+
+func (job *Job) getExitReason() string {
+	if job.exitReason != nil {
+		return job.exitReason.Error()
+	}
+	return ""
 }
 
 func (job *Job) String() string {
@@ -116,9 +126,10 @@ func (job *Job) String() string {
 func NewJob(config *JobConfig) *Job {
 	output := NewCommandOutput()
 	job := &Job{
-		UUID:   uuid.New(),
-		config: config,
-		output: output,
+		UUID:     uuid.New(),
+		config:   config,
+		output:   output,
+		exitCode: -1,
 	}
 	log.Printf("creted job:%s", job)
 	return job
@@ -262,6 +273,7 @@ func (job *Job) Start() error {
 		// process state), and the user invokes Status().
 		processState, err := job.cmd.Process.Wait()
 		job.processState = processState
+		job.exitCode = processState.ExitCode()
 
 		job.mutex.Lock()
 		defer job.mutex.Unlock()
@@ -300,28 +312,29 @@ func (job *Job) Status() *JobStatus {
 	if !job.isStarted {
 		return &JobStatus{
 			State:    JobStatusNotStarted,
-			ExitCode: -1,
+			ExitCode: job.exitCode,
 		}
 	}
 
 	if job.isStarted && !job.isCompleted {
 		return &JobStatus{
 			State:    JobStatusRunning,
-			ExitCode: -1,
+			ExitCode: job.exitCode,
 		}
 	}
 
 	if job.isTerminated {
 		return &JobStatus{
 			State:      JobStatusTerminated,
-			ExitCode:   job.processState.ExitCode(),
-			ExitReason: job.exitReason.Error(),
+			ExitCode:   job.exitCode,
+			ExitReason: job.getExitReason(),
 		}
 	}
 
 	return &JobStatus{
 		State:      JobStatusCompleted,
-		ExitCode:   job.processState.ExitCode(),
+		ExitCode:   job.exitCode,
+		ExitReason: job.getExitReason(),
 	}
 }
 
@@ -332,12 +345,12 @@ func (job *Job) Stream() io.ReadCloser {
 }
 
 func (job *Job) Stop() error {
+	job.mutex.Lock()
+	defer job.mutex.Unlock()
+
 	if job.isTerminated || job.isCompleted {
 		return ErrJobAlreadyStopped
 	}
-
-	job.mutex.Lock()
-	defer job.mutex.Unlock()
 
 	log.Printf("stop job :%s", job)
 	if job.cmd == nil {
