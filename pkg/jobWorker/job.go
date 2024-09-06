@@ -215,7 +215,7 @@ func (job *Job) Start() error {
 					job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error closing cgroup: %w\n", err))
 				}
 			}
-			log.Println("---> send(cgroup)(goroutine): notification notification cgroups had been cleaned up:-1")
+			log.Println("---> send(cgroup)(goroutine): notification cgroups had been cleaned up:-1")
 			cleanCGroup <- -1
 		}
 	}()
@@ -251,7 +251,6 @@ func (job *Job) Start() error {
 
 	unmount := make(chan bool)
 	waitingUnMountToCompleted := func() {
-		log.Println("---> received: notification notification filesystem had been unmounted")
 		_ = <-unmount
 	}
 	go func() {
@@ -263,7 +262,6 @@ func (job *Job) Start() error {
 					log.Printf("error unmounting /proc - %s\n", err)
 					job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error unmounting /proc - %w\n", err))
 				}
-				log.Println("---> send: notification notification filesystem had been unmounted")
 				unmount <- true // unmouned
 			}
 		}
@@ -305,6 +303,8 @@ func (job *Job) Start() error {
 
 		// at this stage command completed and we no longer need cgroup and mounted filesystem and can release
 		cleanCGroup <- 1
+		log.Println("---> send(process status goroutine): notification cgroups to clean up cgroups:-1")
+		// process status goroutine
 		defer waitingCleanCGroupToCompleted()
 		unmount <- true
 		defer waitingUnMountToCompleted()
