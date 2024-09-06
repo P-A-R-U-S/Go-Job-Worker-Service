@@ -20,6 +20,24 @@ run_build:
 	go build -o server -race server/*.go
 	go build -o cli -race cli/main.go
 
+run_test_cgroup:
+	go mod tidy
+	gofmt -w pkg/jobWorker/namespaces/*.go
+	# "to create cgroup we need root permission"
+	sudo go test -v -race pkg/jobWorker/namespaces/*.go -run "^Test_CGroup"
+
+run_test_output:
+	go mod tidy
+	gofmt -w pkg/jobWorker/*.go
+	go test -v -race pkg/jobWorker/*.go -run "^Test_CommandOutput"
+	go test -v -race pkg/jobWorker/*.go -run "^Test_OutputReadCloser"
+
+run_test_job:
+	go mod tidy
+	gofmt -w pkg/jobWorker/*.go
+	# "to create cgroup we need root permission"
+	sudo go test -v -race pkg/jobWorker/*.go -run "^Test_Job"
+
 run_server:
 	go run server/*.go -port 8080
 
@@ -42,5 +60,3 @@ run_client:
  		--memory 1000000000 \
  		--io 10000000 \
  		--command 'echo ${PATH}'
-
-build: generate_certificate generate_grpc_code
