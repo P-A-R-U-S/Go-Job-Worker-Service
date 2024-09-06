@@ -166,10 +166,9 @@ func (job *Job) Start() error {
 		// CLONE_NEWNET:  creates a new network namespace preventing the process from accessing the internet or local network
 		// CLONE_NEWNS:   creates a new mount namespace preventing the process from impacting host mounts
 		// CLONE_NEWUTS:  creates a new UTS namespaces provide isolation between two system identifiers: the hostname and the NIS domain name
-		// CLONE_NEWPID:  crates new PID namespaces isolate the process ID number space, meaning that processes in different PID namespaces can have the same PID
 		// CLONE_NEWUSER: creates new namespaces to isolate security-related identifiers and attributes, in particular, user IDs and group IDs
 		Cloneflags: syscall.CLONE_NEWNS |
-			//		syscall.c |
+			//	syscall.CLONE_NEWIPC | |
 			syscall.CLONE_NEWNET |
 			syscall.CLONE_NEWUTS |
 			syscall.CLONE_NEWPID |
@@ -188,7 +187,9 @@ func (job *Job) Start() error {
 				Size:        1,
 			},
 		},
-		//	Setsid: true,
+		// force the child processes to start in theirs own process groups
+		Setsid: true,
+		Pgid:   0,
 		//	// Also, enables mounting a new proc filesystem so that command such as `ps -ef` only see the processes in the PID namespace
 		//	Unshareflags: syscall.CLONE_NEWNS,
 		//	// instruct cmd.Run to use the control group file descriptor, so that Job Command does not
