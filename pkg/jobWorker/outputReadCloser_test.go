@@ -199,7 +199,7 @@ func Test_OutputReadCloser_Expecting_calling_Close_from_different_goroutine_clos
 
 	// cancel reader from another process
 	go func() {
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 		log.Printf("triggering cancel")
 		cancel()
 	}()
