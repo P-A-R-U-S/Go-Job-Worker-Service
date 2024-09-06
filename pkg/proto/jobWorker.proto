@@ -31,10 +31,10 @@ message JobResponse {
 
 enum Status {
   UNSPECIFIED = 0;
-  STARTED     = 1;
+  NOT_STARTED = 1;
   RUNNING     = 2;
   STOPPED     = 3;
-  FAILED      = 4;
+  TERMINATED  = 4;
   COMPLETED   = 5;
 }
 

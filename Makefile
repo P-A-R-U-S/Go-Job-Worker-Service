@@ -42,14 +42,9 @@ run_server:
 	go run server/*.go -port 8080
 
 run_client:
-	# linux
-	#GOOS=linux GOARCH=amd64
-
-	# Mac OS (Apple Silicon)
-	GOOS=darwin GOARCH=arm64
-
-	# Windows
-	#GOOS=windows GOARCH=amd64
+	#GOOS=linux GOARCH=amd64 	# linux
+	GOOS=darwin GOARCH=arm64 	# Mac OS (Apple Silicon)
+	#GOOS=windows GOARCH=amd64 	# Windows
 
 	go run cli/main.go --host 'localhost:8080'\
  		--ca-cert 'certs/ca-cert.pem' \
@@ -59,4 +54,4 @@ run_client:
  		--cpu 0.5 \
  		--memory 1000000000 \
  		--io 10000000 \
- 		--command 'echo ${PATH}'
+ 		--command 'echo' 'hello world'

@@ -4,15 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/P-A-R-U-S/Go-Job-Worker-Service/pkg/jobWorker"
 	"github.com/P-A-R-U-S/Go-Job-Worker-Service/pkg/proto"
 	"github.com/P-A-R-U-S/Go-Job-Worker-Service/pkg/tls"
-	"github.com/google/uuid"
 	"google.golang.org/grpc"
 	"io"
-	"log"
-	"os"
-	"os/exec"
-	"strings"
 	"sync"
 )
 
@@ -21,14 +17,13 @@ var (
 	ErrNotAuthorized = errors.New("user is not authorized to access job")
 )
 
-// userJob holds the user who started the job and jobId
 type userJob struct {
-	user  string
-	jobId *uuid.UUID
+	user string
+	job  *jobWorker.Job
 }
 
 type JobWorkerServer struct {
-	userJobs                 map[uuid.UUID]userJob
+	userJobs                 map[string]userJob
 	mutex                    sync.Mutex
 	rootPhysicalDeviceMajMin string
 }
@@ -37,7 +32,8 @@ func NewJobWorkerServer() *JobWorkerServer {
 	return &JobWorkerServer{}
 }
 
-func (s JobWorkerServer) Start(ctx context.Context, request *proto.JobCreateRequest) (*proto.JobResponse, error) {
+// Start creates a new job for the user and starts the job.
+func (s *JobWorkerServer) Start(ctx context.Context, request *proto.JobCreateRequest) (*proto.JobResponse, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -46,42 +42,64 @@ func (s JobWorkerServer) Start(ctx context.Context, request *proto.JobCreateRequ
 		return nil, fmt.Errorf("failed to get user from certificate: %w", err)
 	}
 
-	//
-	jobUUID := uuid.New()
+	config := jobWorker.JobConfig{
+		CPU:              request.CPU,
+		IOBytesPerSecond: request.IoBytesPerSecond,
+		MemBytes:         request.MemBytes,
+		Command:          request.GetCommand(),
+		Arguments:        request.GetArgs(),
+	}
 
-	log.Printf("received command: ", strings.Join(request.Args, " "))
+	newJob := jobWorker.NewJob(&config)
 
-	command := request.Command
-	arguments := request.Args
-	cmd := exec.Command(command, arguments...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	s.userJobs[newJob.UUID.String()] = userJob{
+		user: user,
+		job:  newJob,
+	}
 
-	//cmd.Start()
+	if err = newJob.Start(); err != nil {
+		return &proto.JobResponse{Id: newJob.UUID.String()}, fmt.Errorf("error starting job: %w", err)
+	}
 
-	log.Printf("user:%s created new job:%s to execute command:%s %s",
-		user,
-		jobUUID,
-		command,
-		strings.Join(arguments, " "))
-
-	return &proto.JobResponse{Id: jobUUID.String()}, nil
+	return &proto.JobResponse{Id: newJob.UUID.String()}, nil
 }
 
-func (s JobWorkerServer) Status(ctx context.Context, request *proto.JobRequest) (*proto.JobStatusResponse, error) {
-	jobUUID := uuid.New()
-	log.Printf("new job with UUID: %s created\n", jobUUID)
-	return &proto.JobStatusResponse{Status: proto.Status_STARTED, ExitCode: -1, ExitReason: ""}, nil
-}
-
-func (s JobWorkerServer) Stream(request *proto.JobRequest, stream grpc.ServerStreamingServer[proto.OutputResponse]) error {
+func (s *JobWorkerServer) Status(ctx context.Context, request *proto.JobRequest) (*proto.JobStatusResponse, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	jobID, err := uuid.Parse(request.GetId())
-	if err != nil {
-		return fmt.Errorf("not correct format for JobID:%s", request.GetId())
+	jobID := request.GetId()
+
+	job, ok := s.userJobs[jobID]
+	if !ok {
+		return nil, ErrJobNotFound
 	}
+
+	user, err := tls.GetUserFromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user from certificate: %w", err)
+	}
+
+	if user != job.user {
+		// TODO: In production to prevent analyze security vulnerabilities
+		// 		 better to returning Not Found instead of Permission Denied to hide job existence
+		return nil, ErrNotAuthorized
+	}
+
+	jobStatus := job.job.Status()
+
+	return &proto.JobStatusResponse{
+		Status:     convertJobStateToStatus(jobStatus.State),
+		ExitCode:   int32(jobStatus.ExitCode),
+		ExitReason: jobStatus.ExitReason,
+	}, nil
+}
+
+func (s *JobWorkerServer) Stream(request *proto.JobRequest, stream grpc.ServerStreamingServer[proto.OutputResponse]) error {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	jobID := request.GetId()
 
 	job, ok := s.userJobs[jobID]
 	if !ok {
@@ -94,14 +112,12 @@ func (s JobWorkerServer) Stream(request *proto.JobRequest, stream grpc.ServerStr
 	}
 
 	if user != job.user {
-		// TODO: for security reason in production code better to return extremely neutral message - e.g. NotFound or Server Deny Response
-		//		 to prevent any reverse engineer request/response
+		// TODO: In production to prevent analyze security vulnerabilities
+		// 		 better to returning Not Found instead of Permission Denied to hide job existence
 		return ErrNotAuthorized
 	}
 
 	jobOutput := job.job.Stream()
-	s.mutex.Unlock()
-
 	buffer := make([]byte, 1024)
 
 	for {
@@ -111,20 +127,13 @@ func (s JobWorkerServer) Stream(request *proto.JobRequest, stream grpc.ServerStr
 				return fmt.Errorf("error reading job output: %w", err)
 			}
 
-			err = stream.Send(&proto.Output{
-				Content: buffer[:bytesRead],
-			})
-			if err != nil {
+			if err = stream.Send(&proto.OutputResponse{Content: buffer[:bytesRead]}); err != nil {
 				return fmt.Errorf("error sending job output: %w", err)
 			}
-
 			break
 		}
 
-		err = stream.Send(&proto.Output{
-			Content: buffer[:bytesRead],
-		})
-		if err != nil {
+		if err = stream.Send(&proto.OutputResponse{Content: buffer[:bytesRead]}); err != nil {
 			return fmt.Errorf("error sending job output: %w", err)
 		}
 	}
@@ -132,19 +141,51 @@ func (s JobWorkerServer) Stream(request *proto.JobRequest, stream grpc.ServerStr
 	return nil
 }
 
-func (s JobWorkerServer) Stop(ctx context.Context, request *proto.JobRequest) (*proto.JobStatusResponse, error) {
-	jobUUID := uuid.New()
+func (s *JobWorkerServer) Stop(ctx context.Context, request *proto.JobRequest) (*proto.JobStatusResponse, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
-	// Kill it:
-	//if err := cmd.Process.Kill(); err != nil {
-	//	log.Fatal("failed to kill process: ", err)
-	//}
+	jobID := request.GetId()
 
-	log.Printf("new job with UUID: %s Stoped\n", jobUUID)
-	return &proto.JobStatusResponse{Status: proto.Status_STOPPED, ExitCode: -1, ExitReason: ""}, nil
+	job, ok := s.userJobs[jobID]
+	if !ok {
+		return nil, ErrJobNotFound
+	}
+
+	user, err := tls.GetUserFromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user from certificate: %w", err)
+	}
+
+	if user != job.user {
+		// TODO: In production to prevent analyze security vulnerabilities
+		// 		 better to returning Not Found instead of Permission Denied to hide job existence
+		return nil, ErrNotAuthorized
+	}
+	if err := job.job.Stop(); err != nil {
+		return nil, fmt.Errorf("error stopping job: %w", err)
+	}
+
+	jobStatus := job.job.Status()
+
+	return &proto.JobStatusResponse{
+		Status:     convertJobStateToStatus(jobStatus.State),
+		ExitCode:   int32(jobStatus.ExitCode),
+		ExitReason: jobStatus.ExitReason,
+	}, nil
+
 }
 
-func (s JobWorkerServer) mustEmbedUnimplementedJobWorkerServer() {
-	//TODO implement me
-	panic("implement me")
+func convertJobStateToStatus(state jobWorker.State) proto.Status {
+	switch state {
+	case jobWorker.JobStatusNotStarted:
+		return proto.Status_NOT_STARTED
+	case jobWorker.JobStatusRunning:
+		return proto.Status_RUNNING
+	case jobWorker.JobStatusCompleted:
+		return proto.Status_COMPLETED
+	case jobWorker.JobStatusTerminated:
+		return proto.Status_TERMINATED
+	}
+	return proto.Status_UNSPECIFIED
 }
