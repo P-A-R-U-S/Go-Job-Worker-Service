@@ -111,6 +111,12 @@ func main() {
 					memory := cCtx.Int64(commandFlagMemory)
 					ioBytesPerSecond := cCtx.Int64(commandFlagIoBytesPerSecond)
 
+					//fmt.Printf("command %s\n", command)
+					//fmt.Printf("args: %s\n", args)
+					//fmt.Printf("cpu: %f\n", cpu)
+					//fmt.Printf("memory: %d\n", memory)
+					//fmt.Printf("ioBytesPerSecond: %d\n", ioBytesPerSecond)
+
 					return start(client, command, args, cpu, memory, ioBytesPerSecond)
 				},
 			},
