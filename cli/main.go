@@ -19,15 +19,15 @@ import (
 )
 
 const (
-	COMMAND_FLAG_HOST                = "host"
-	COMMAND_FLAG_CERTIFICATE         = "ca-cert"
-	COMMAND_FLAG_CLIENT_CERTIFICATE  = "client-cert"
-	COMMAND_FLAG_CLIENT_PRIVATE_KEY  = "client-key"
-	COMMAND_FLAG_CPU                 = "cpu"
-	COMMAND_FLAG_MEMORY              = "memory"
-	COMMAND_FLAG_IO_BYTES_PER_SECOND = "io"
-	COMMAND_FLAG_COMMAND             = "c"
-	COMMAND_FLAG_ID                  = "id"
+	commandFlagHost              = "host"
+	commandFlagCertificate       = "ca-cert"
+	commandFlagClientCertificate = "client-cert"
+	commandFlagClientPrivateKey  = "client-key"
+	commandFlagCpu               = "cpu"
+	commandFlagMemory            = "memory"
+	commandFlagIoBytesPerSecond  = "io"
+	commandFlagCommand           = "c"
+	commandFlagId                = "id"
 )
 
 var (
@@ -40,32 +40,32 @@ func main() {
 		Usage: "Connect to JobWorker Service to run arbitrary Linux command on remote hosts",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
-				Name:     COMMAND_FLAG_HOST,
-				Value:    "localhost",
+				Name:     commandFlagHost,
+				Value:    "localhost:8080",
 				Usage:    "server IP:PORT to connect",
 				Required: true,
 			},
 			&cli.StringFlag{
-				Name:     COMMAND_FLAG_CERTIFICATE,
+				Name:     commandFlagCertificate,
 				Usage:    "client certificate authority (CA)",
 				Required: true,
 			},
 			&cli.StringFlag{
-				Name:     COMMAND_FLAG_CLIENT_CERTIFICATE,
+				Name:     commandFlagClientCertificate,
 				Usage:    "client mTLS certificate",
 				Required: true,
 			},
 			&cli.StringFlag{
-				Name:     COMMAND_FLAG_CLIENT_PRIVATE_KEY,
+				Name:     commandFlagClientPrivateKey,
 				Usage:    "client private key",
 				Required: true,
 			},
 		},
 		Action: func(cCtx *cli.Context) error {
-			fmt.Printf("connecting to service %s\n", cCtx.String(COMMAND_FLAG_HOST))
-			fmt.Printf("CA Certificate: %s\n", cCtx.String(COMMAND_FLAG_CERTIFICATE))
-			fmt.Printf("Client Certificate: %s\n", cCtx.String(COMMAND_FLAG_CLIENT_CERTIFICATE))
-			fmt.Printf("Clint Private key: %s\n", cCtx.String(COMMAND_FLAG_CLIENT_PRIVATE_KEY))
+			fmt.Printf("connecting to service %s\n", cCtx.String(commandFlagHost))
+			fmt.Printf("CA Certificate: %s\n", cCtx.String(commandFlagCertificate))
+			fmt.Printf("Client Certificate: %s\n", cCtx.String(commandFlagClientCertificate))
+			fmt.Printf("Clint Private key: %s\n", cCtx.String(commandFlagClientPrivateKey))
 			return nil
 		},
 		Commands: []*cli.Command{
@@ -74,26 +74,26 @@ func main() {
 				Usage: "starting new job",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:     COMMAND_FLAG_CPU,
+						Name:     commandFlagCpu,
 						Value:    "0.5",
 						Usage:    "approximate number of CPU cores to limit the job",
 						Required: true,
 					},
 					// TODO: in future add format support for - e.g. 100MB, 1GB and etc
 					&cli.StringFlag{
-						Name:     COMMAND_FLAG_MEMORY,
+						Name:     commandFlagMemory,
 						Value:    "1000000000",
 						Usage:    "maximum amount of memory used by the job",
 						Required: true,
 					},
 					&cli.StringFlag{
-						Name:     COMMAND_FLAG_IO_BYTES_PER_SECOND,
+						Name:     commandFlagIoBytesPerSecond,
 						Value:    "1000000",
 						Usage:    "maximum read and write on the device mounted / is mounted on",
 						Required: true,
 					},
 					&cli.StringFlag{
-						Name:     COMMAND_FLAG_COMMAND,
+						Name:     commandFlagCommand,
 						Aliases:  []string{"command"},
 						Usage:    "command to execute",
 						Required: true,
@@ -105,11 +105,11 @@ func main() {
 						return ErrNoAbleToCreateClient
 					}
 
-					command := cCtx.String(COMMAND_FLAG_MEMORY)
+					command := cCtx.String(commandFlagMemory)
 					args := []string{}
-					cpu := cCtx.Float64(COMMAND_FLAG_CPU)
-					memory := cCtx.Int64(COMMAND_FLAG_MEMORY)
-					io := cCtx.Int64(COMMAND_FLAG_IO_BYTES_PER_SECOND)
+					cpu := cCtx.Float64(commandFlagCpu)
+					memory := cCtx.Int64(commandFlagMemory)
+					io := cCtx.Int64(commandFlagIoBytesPerSecond)
 
 					start(client, command, args, cpu, memory, io)
 					return nil
@@ -120,7 +120,7 @@ func main() {
 				Usage: "request job's status",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:     COMMAND_FLAG_ID,
+						Name:     commandFlagId,
 						Usage:    "job id",
 						Required: true,
 					},
@@ -131,7 +131,7 @@ func main() {
 						return ErrNoAbleToCreateClient
 					}
 
-					jobId := cCtx.String(COMMAND_FLAG_ID)
+					jobId := cCtx.String(commandFlagId)
 					fmt.Printf("job id: %s\n", jobId)
 
 					return status(client, jobId)
@@ -142,7 +142,7 @@ func main() {
 				Usage: "request job's output stream",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:     COMMAND_FLAG_ID,
+						Name:     commandFlagId,
 						Usage:    "job id",
 						Required: true,
 					},
@@ -153,7 +153,7 @@ func main() {
 						return ErrNoAbleToCreateClient
 					}
 
-					jobId := cCtx.String(COMMAND_FLAG_ID)
+					jobId := cCtx.String(commandFlagId)
 					fmt.Printf("job id: %s\n", jobId)
 
 					return stream(client, jobId)
@@ -164,7 +164,7 @@ func main() {
 				Usage: "stop job execution",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:     COMMAND_FLAG_ID,
+						Name:     commandFlagId,
 						Usage:    "job id",
 						Required: true,
 					},
@@ -175,7 +175,7 @@ func main() {
 						return ErrNoAbleToCreateClient
 					}
 
-					jobId := cCtx.String(COMMAND_FLAG_ID)
+					jobId := cCtx.String(commandFlagId)
 					fmt.Printf("job id: %s\n", jobId)
 
 					return stop(client, jobId)
@@ -294,10 +294,10 @@ func stop(client proto.JobWorkerClient, jobId string) error {
 }
 
 func createClient(cCtx *cli.Context) (proto.JobWorkerClient, error) {
-	host := cCtx.String(COMMAND_FLAG_HOST)
-	caCert := cCtx.String(COMMAND_FLAG_CERTIFICATE)
-	clientCert := cCtx.String(COMMAND_FLAG_CLIENT_CERTIFICATE)
-	clientKey := cCtx.String(COMMAND_FLAG_CLIENT_PRIVATE_KEY)
+	host := cCtx.String(commandFlagHost)
+	caCert := cCtx.String(commandFlagCertificate)
+	clientCert := cCtx.String(commandFlagClientCertificate)
+	clientKey := cCtx.String(commandFlagClientPrivateKey)
 
 	fmt.Printf("connecting to service %s\n", host)
 	fmt.Printf("CA Certificate: %s\n", caCert)

@@ -10,8 +10,6 @@ generate_grpc_code:
 
 run_build:
 	go mod tidy
-	#go build pkg/tls/tls.go
-	#go build pgk/proto/*.go
 	gofmt -w pkg/tls/tls.go
 	gofmt -w pkg/proto/jobWorker.pb.go,pkg/proto/jobWorker_grpc.pb.go
 	gofmt -w server/*.go
@@ -39,14 +37,31 @@ run_test_job:
 	sudo go test -v -race pkg/jobWorker/*.go -run "^Test_Job"
 
 run_server:
-	go run server/*.go -port 8080
-
-run_client:
 	#GOOS=linux GOARCH=amd64 	# linux
-	GOOS=darwin GOARCH=arm64 	# Mac OS (Apple Silicon)
+	#GOOS=darwin GOARCH=arm64 	# Mac OS (Apple Silicon)
 	#GOOS=windows GOARCH=amd64 	# Windows
+	go build -o ./jwsrv server/*.go
+	sudo ./jwsrv -port 8080
 
-	go run cli/main.go --host 'localhost:8080'\
+run_client_test:
+	#GOOS=linux GOARCH=amd64 	# linux
+	#GOOS=darwin GOARCH=arm64 	# Mac OS (Apple Silicon)
+	#GOOS=windows GOARCH=amd64 	# Windows
+	go build -o ./jwcli cli/main.go
+
+	# try connect with invalid certificate
+	./jwcli --host 'localhost:8080'\
+			--ca-cert 'certs/ca-cert.pem' \
+			--client-cert 'certs/invalid-client-1-cert.pem' \
+			--client-key 'certs/invalid-client-1-key.pem' \
+			start \
+			--cpu 0.5 \
+			--memory 1000000000 \
+			--io 10000000 \
+			--command 'echo' 'hello world'
+
+	# run short lived job
+	./jwcli --host 'localhost:8080'\
  		--ca-cert 'certs/ca-cert.pem' \
  		--client-cert 'certs/client-1-cert.pem' \
  		--client-key 'certs/client-1-key.pem' \
@@ -54,4 +69,8 @@ run_client:
  		--cpu 0.5 \
  		--memory 1000000000 \
  		--io 10000000 \
- 		--command 'echo' 'hello world'
+ 		--command '/bin/bash' '-c' 'while :; do echo thinking; sleep 1; done'
+
+ 	# sleep for 5 second to let job generate some output
+
+
