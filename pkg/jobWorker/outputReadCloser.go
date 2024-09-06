@@ -2,6 +2,7 @@ package jobWorker
 
 import (
 	"errors"
+	"sync"
 )
 
 var (
@@ -13,10 +14,12 @@ var (
 //
 //	and close output if it is no longer need it .
 type OutputReadCloser struct {
-	output *CommandOutput
+	output  *CommandOutput
+	rwmutex sync.RWMutex
 	// readIndex is the index of the next byte to read from the Output
 	readIndex int64
-	isClosed  bool
+	//isClosed is true if was reader closed
+	isClosed bool
 }
 
 func NewOutputReadCloser(output *CommandOutput) *OutputReadCloser {
@@ -28,6 +31,9 @@ func NewOutputReadCloser(output *CommandOutput) *OutputReadCloser {
 //	Wait for changes to the CommandOutput if no content is available to read.
 //	Returns EOF if the CommandOutput is closed and all the content has been read.
 func (orc *OutputReadCloser) Read(buffer []byte) (n int, err error) {
+	orc.rwmutex.RLock()
+	defer orc.rwmutex.RUnlock()
+
 	if orc.isClosed {
 		return 0, ErrReaderClosed
 	}
@@ -61,15 +67,19 @@ func (orc *OutputReadCloser) Read(buffer []byte) (n int, err error) {
 }
 
 func (orc *OutputReadCloser) Close() error {
-	if orc.output == nil {
-		return ErrOutputMissing
-	}
-
 	if orc.isClosed {
 		return ErrReaderClosed
 	}
 
+	if orc.output == nil {
+		return ErrOutputMissing
+	}
+
+	orc.rwmutex.RLock()
+	defer orc.rwmutex.RUnlock()
+
 	orc.isClosed = true
+	orc.output = nil
 
 	return nil
 }
