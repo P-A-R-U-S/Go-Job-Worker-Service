@@ -1,8 +1,10 @@
 package jobWorker
 
 import (
+	"context"
 	"errors"
 	"io"
+	"log"
 	"sync"
 	"testing"
 	"time"
@@ -147,6 +149,73 @@ func Test_OutputReadCloser_GetsNewContentAsWritten(t *testing.T) {
 			t.Errorf("Expected no error closing output, got %v", err)
 		}
 	}()
+
+	waitGroup.Wait()
+}
+
+func Test_OutputReadCloser_all_call_are_thread_safe(t *testing.T) {
+	t.Parallel()
+
+	cancelCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	output := NewCommandOutput()
+
+	outputReadCloser := NewOutputReadCloser(output)
+
+	var waitGroup sync.WaitGroup
+
+	waitGroup.Add(1)
+
+	go func() {
+		defer waitGroup.Done()
+
+		for {
+			log.Printf("write data")
+			_, err := output.Write([]byte("hello world"))
+			if err != nil && !errors.Is(err, ErrClosedOutput) {
+				t.Errorf("Expected no error writing content, got %v", err)
+			} else if errors.Is(err, ErrClosedOutput) {
+				break
+			}
+
+			// sleep to prove readers get content as it is written
+			time.Sleep(10 * time.Millisecond)
+		}
+	}()
+
+	buffer := make([]byte, 4)
+
+	go func() {
+		select {
+		case <-cancelCtx.Done():
+			log.Printf("receving cancel")
+			if err := outputReadCloser.Close(); err != nil {
+				t.Errorf("Expected no error closing reader, got %v", err)
+			}
+		}
+	}()
+
+	// cancel reader from another process
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		log.Printf("triggering cancel")
+		cancel()
+	}()
+
+	for {
+		log.Printf("read data")
+		if _, err := outputReadCloser.Read(buffer); err != nil && !errors.Is(err, ErrReaderClosed) {
+			t.Errorf("Expected no error reading content, got %v", err)
+		} else if errors.Is(err, ErrReaderClosed) {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	if err := output.Close(); err != nil {
+		t.Errorf("Expected no error closing output, got %v", err)
+	}
 
 	waitGroup.Wait()
 }
