@@ -198,7 +198,12 @@ func (job *Job) Start() error {
 	}
 
 	cleanCGroup := make(chan bool)
+	waitingCleanCGroupToCompleted := func() {
+		log.Println("---> received: notification cgroups had been cleaned up")
+		_ = <-cleanCGroup // send notification channel cleaned up
+	}
 	go func() {
+		time.Sleep(100 * time.Millisecond)
 		select {
 		case <-cleanCGroup:
 			{
@@ -208,22 +213,27 @@ func (job *Job) Start() error {
 					job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error closing cgroup: %w\n", err))
 				}
 			}
+			log.Println("---> send: notification notification cgroups had been cleaned up")
+			cleanCGroup <- true
 		}
 	}()
 
 	err := ns.CreateCGroup(job.getCGroupName())
 	if err != nil {
 		cleanCGroup <- true
+		defer waitingCleanCGroupToCompleted()
 		return fmt.Errorf("error creating cgroup: %w", err)
 	}
 
 	if err = ns.AddResourceControl(job.getCGroupName(), ns.CpuWeightFile, strconv.Itoa(int(job.config.CPU*100))); err != nil {
 		cleanCGroup <- true
+		defer waitingCleanCGroupToCompleted()
 		log.Printf("could not add resources into controller:%s, %v", ns.CpuWeightFile, err)
 		return fmt.Errorf("error starting command: %w", err)
 	}
 	if err = ns.AddResourceControl(job.getCGroupName(), ns.MemoryHighFile, strconv.FormatInt(job.config.MemBytes, 10)); err != nil {
 		cleanCGroup <- true
+		defer waitingCleanCGroupToCompleted()
 		return fmt.Errorf("could not add resources into controller:%s, %v", ns.MemoryHighFile, err)
 	}
 	//if err = ns.AddResourceControl(job.getCGroupName(), ns.IoWeightFile, strconv.FormatInt(job.config.IOBytesPerSecond, 10)); err != nil {
@@ -233,11 +243,17 @@ func (job *Job) Start() error {
 	//provide the file descriptor to cmd.Run so that it can add the new PID to the control group
 	if err = ns.AddProcess(job.getCGroupName(), cmd); err != nil {
 		cleanCGroup <- true
+		defer waitingCleanCGroupToCompleted()
 		return fmt.Errorf("Error AddProcess /proc - %w\n", err)
 	}
 
 	unmount := make(chan bool)
+	waitingUnMountToCompleted := func() {
+		log.Println("---> received: notification notification filesystem had been unmounted")
+		_ = <-unmount
+	}
 	go func() {
+		time.Sleep(100 * time.Millisecond)
 		select {
 		case <-unmount:
 			{
@@ -245,12 +261,15 @@ func (job *Job) Start() error {
 					log.Printf("error unmounting /proc - %s\n", err)
 					job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error unmounting /proc - %w\n", err))
 				}
+				log.Println("---> send: notification notification filesystem had been unmounted")
+				unmount <- true // unmouned
 			}
 		}
 	}()
 
 	if err = ns.MountProc(); err != nil {
 		cleanCGroup <- true
+		defer waitingUnMountToCompleted()
 		return fmt.Errorf("Error mounting /proc - %w\n", err)
 	}
 
@@ -282,10 +301,11 @@ func (job *Job) Start() error {
 		// at this stage job in completed (successfully or not we can detect from checking job.exitReason and isTerminated )
 		job.isCompleted = true
 
-		defer func() {
-			cleanCGroup <- true
-			unmount <- true
-		}()
+		// at this stage command completed and we no longer need cgroup and mounted filesystem and can release
+		cleanCGroup <- true
+		defer waitingCleanCGroupToCompleted()
+		unmount <- true
+		defer waitingUnMountToCompleted()
 
 		if err != nil {
 			job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error running command: %w\n", err))
@@ -300,8 +320,10 @@ func (job *Job) Start() error {
 		if err = job.output.Close(); err != nil {
 			job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error closing output: %w\n", err))
 		}
+		log.Print("---> waiting process status goroutine is completed")
 	}()
 
+	log.Print("---> start functions completed")
 	return nil
 }
 
