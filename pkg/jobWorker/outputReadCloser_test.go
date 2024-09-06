@@ -153,7 +153,7 @@ func Test_OutputReadCloser_GetsNewContentAsWritten(t *testing.T) {
 	waitGroup.Wait()
 }
 
-func Test_OutputReadCloser_all_call_are_thread_safe(t *testing.T) {
+func Test_OutputReadCloser_Expecting_calling_Close_from_different_goroutine_close_Reader(t *testing.T) {
 	t.Parallel()
 
 	cancelCtx, cancel := context.WithCancel(context.Background())
@@ -173,12 +173,13 @@ func Test_OutputReadCloser_all_call_are_thread_safe(t *testing.T) {
 		for {
 			log.Printf("write data")
 			_, err := output.Write([]byte("hello world"))
-			if err != nil && !errors.Is(err, ErrClosedOutput) {
-				t.Errorf("Expected no error writing content, got %v", err)
-			} else if errors.Is(err, ErrClosedOutput) {
-				break
+			if err != nil {
+				if errors.Is(err, ErrClosedOutput) {
+					break
+				} else {
+					t.Errorf("Expected no error writing content, got %v", err)
+				}
 			}
-
 			// sleep to prove readers get content as it is written
 			time.Sleep(10 * time.Millisecond)
 		}
@@ -205,10 +206,12 @@ func Test_OutputReadCloser_all_call_are_thread_safe(t *testing.T) {
 
 	for {
 		log.Printf("read data")
-		if _, err := outputReadCloser.Read(buffer); err != nil && !errors.Is(err, ErrReaderClosed) {
-			t.Errorf("Expected no error reading content, got %v", err)
-		} else if errors.Is(err, ErrReaderClosed) {
-			break
+		if _, err := outputReadCloser.Read(buffer); err != nil {
+			if errors.Is(err, ErrReaderClosed) {
+				break
+			} else {
+				t.Errorf("Expected no error reading content, got %v", err)
+			}
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
