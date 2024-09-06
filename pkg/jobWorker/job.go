@@ -200,14 +200,14 @@ func (job *Job) Start() error {
 	cleanCGroup := make(chan int)
 	waitingCleanCGroupToCompleted := func() {
 		s := <-cleanCGroup // send notification channel cleaned up
-		log.Printf("---> received(cgroup): notification cgroups had been cleaned up:%d\n", s)
+		log.Printf("---> received(cgroup)(waitingCleanCGroupToCompleted): notification cgroups had been cleaned up:%d\n", s)
 	}
 	go func() {
 		time.Sleep(100 * time.Millisecond)
 		select {
 		case s := <-cleanCGroup:
 			{
-				log.Printf("---> received(cgroup): notification cgroups had been cleaned up:%d\n", s)
+				log.Printf("---> received(cgroup)(goroutine): notification cgroups had been cleaned up:%d\n", s)
 
 				// do not close the cgroup.procs file until after the process has exited
 				if err := ns.DeleteCGroup(job.getCGroupName()); err != nil {
@@ -215,7 +215,7 @@ func (job *Job) Start() error {
 					job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error closing cgroup: %w\n", err))
 				}
 			}
-			log.Println("---> send(cgroup): notification notification cgroups had been cleaned up:-1")
+			log.Println("---> send(cgroup)(goroutine): notification notification cgroups had been cleaned up:-1")
 			cleanCGroup <- -1
 		}
 	}()
