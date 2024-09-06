@@ -198,7 +198,7 @@ func Test_OutputReadCloser_all_call_are_thread_safe(t *testing.T) {
 
 	// cancel reader from another process
 	go func() {
-		time.Sleep(20 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 		log.Printf("triggering cancel")
 		cancel()
 	}()
