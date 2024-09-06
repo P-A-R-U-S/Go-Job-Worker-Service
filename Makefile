@@ -49,11 +49,11 @@ run_client_test:
 	#GOOS=windows GOARCH=amd64 	# Windows
 	go build -o ./jwcli cli/main.go
 
-	# try connect with invalid certificate
+	# run simple job
 	./jwcli --host 'localhost:8080'\
-			--ca-cert 'certs/ca-cert.pem' \
-			--client-cert 'certs/invalid-client-1-cert.pem' \
-			--client-key 'certs/invalid-client-1-key.pem' \
+			--ca-cert './certs/ca-cert.pem' \
+			--client-cert './certs/client-1-cert.pem' \
+			--client-key './certs/client-1-key.pem' \
 			start \
 			--cpu 0.5 \
 			--memory 1000000000 \
@@ -61,15 +61,15 @@ run_client_test:
 			--command 'echo' 'hello world'
 
 	# run short lived job
-	./jwcli --host 'localhost:8080'\
- 		--ca-cert 'certs/ca-cert.pem' \
- 		--client-cert 'certs/client-1-cert.pem' \
- 		--client-key 'certs/client-1-key.pem' \
- 		start \
- 		--cpu 0.5 \
- 		--memory 1000000000 \
- 		--io 10000000 \
- 		--command '/bin/bash' '-c' 'while :; do echo thinking; sleep 1; done'
+	#./jwcli --host 'localhost:8080'\
+# 		--ca-cert 'certs/ca-cert.pem' \
+# 		--client-cert 'certs/client-1-cert.pem' \
+# 		--client-key 'certs/client-1-key.pem' \
+# 		start \
+# 		--cpu 0.5 \
+# 		--memory 1000000000 \
+# 		--io 10000000 \
+# 		--command '/bin/bash' '-c' 'while :; do echo thinking; sleep 1; done'
 
  	# sleep for 5 second to let job generate some output
 

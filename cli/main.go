@@ -105,14 +105,13 @@ func main() {
 						return ErrNoAbleToCreateClient
 					}
 
-					command := cCtx.String(commandFlagMemory)
-					args := []string{}
+					command := cCtx.String(commandFlagCommand)
+					args := cCtx.Args().Slice()
 					cpu := cCtx.Float64(commandFlagCpu)
 					memory := cCtx.Int64(commandFlagMemory)
-					io := cCtx.Int64(commandFlagIoBytesPerSecond)
+					ioBytesPerSecond := cCtx.Int64(commandFlagIoBytesPerSecond)
 
-					start(client, command, args, cpu, memory, io)
-					return nil
+					return start(client, command, args, cpu, memory, ioBytesPerSecond)
 				},
 			},
 			{

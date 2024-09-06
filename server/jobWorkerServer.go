@@ -23,13 +23,14 @@ type userJob struct {
 }
 
 type JobWorkerServer struct {
-	userJobs                 map[string]userJob
-	mutex                    sync.Mutex
-	rootPhysicalDeviceMajMin string
+	userJobs map[string]userJob
+	mutex    sync.Mutex
 }
 
 func NewJobWorkerServer() *JobWorkerServer {
-	return &JobWorkerServer{}
+	return &JobWorkerServer{
+		userJobs: map[string]userJob{},
+	}
 }
 
 // Start creates a new job for the user and starts the job.
