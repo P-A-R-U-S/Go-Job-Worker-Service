@@ -197,42 +197,44 @@ func (job *Job) Start() error {
 		//	UseCgroupFD: true,
 	}
 
-	cleanCGroup := make(chan bool)
+	cleanCGroup := make(chan int)
 	waitingCleanCGroupToCompleted := func() {
-		log.Println("---> received: notification cgroups had been cleaned up")
-		_ = <-cleanCGroup // send notification channel cleaned up
+		s := <-cleanCGroup // send notification channel cleaned up
+		log.Printf("---> received(cgroup): notification cgroups had been cleaned up:%d\n", s)
 	}
 	go func() {
 		time.Sleep(100 * time.Millisecond)
 		select {
-		case <-cleanCGroup:
+		case s := <-cleanCGroup:
 			{
+				log.Printf("---> received(cgroup): notification cgroups had been cleaned up:%d\n", s)
+
 				// do not close the cgroup.procs file until after the process has exited
 				if err := ns.DeleteCGroup(job.getCGroupName()); err != nil {
 					log.Printf("error closing cgroup: %s\n", err)
 					job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error closing cgroup: %w\n", err))
 				}
 			}
-			log.Println("---> send: notification notification cgroups had been cleaned up")
-			cleanCGroup <- true
+			log.Println("---> send(cgroup): notification notification cgroups had been cleaned up:-1")
+			cleanCGroup <- -1
 		}
 	}()
 
 	err := ns.CreateCGroup(job.getCGroupName())
 	if err != nil {
-		cleanCGroup <- true
+		cleanCGroup <- 1
 		defer waitingCleanCGroupToCompleted()
 		return fmt.Errorf("error creating cgroup: %w", err)
 	}
 
 	if err = ns.AddResourceControl(job.getCGroupName(), ns.CpuWeightFile, strconv.Itoa(int(job.config.CPU*100))); err != nil {
-		cleanCGroup <- true
+		cleanCGroup <- 1
 		defer waitingCleanCGroupToCompleted()
 		log.Printf("could not add resources into controller:%s, %v", ns.CpuWeightFile, err)
 		return fmt.Errorf("error starting command: %w", err)
 	}
 	if err = ns.AddResourceControl(job.getCGroupName(), ns.MemoryHighFile, strconv.FormatInt(job.config.MemBytes, 10)); err != nil {
-		cleanCGroup <- true
+		cleanCGroup <- 1
 		defer waitingCleanCGroupToCompleted()
 		return fmt.Errorf("could not add resources into controller:%s, %v", ns.MemoryHighFile, err)
 	}
@@ -242,7 +244,7 @@ func (job *Job) Start() error {
 
 	//provide the file descriptor to cmd.Run so that it can add the new PID to the control group
 	if err = ns.AddProcess(job.getCGroupName(), cmd); err != nil {
-		cleanCGroup <- true
+		cleanCGroup <- 1
 		defer waitingCleanCGroupToCompleted()
 		return fmt.Errorf("Error AddProcess /proc - %w\n", err)
 	}
@@ -268,14 +270,14 @@ func (job *Job) Start() error {
 	}()
 
 	if err = ns.MountProc(); err != nil {
-		cleanCGroup <- true
+		cleanCGroup <- 1
 		defer waitingUnMountToCompleted()
 		return fmt.Errorf("Error mounting /proc - %w\n", err)
 	}
 
 	log.Printf("starting job:%s, cmd:%s", job, cmd.String())
 	if err = cmd.Start(); err != nil {
-		cleanCGroup <- true
+		cleanCGroup <- 1
 		unmount <- true
 		return fmt.Errorf("error starting command: %w", err)
 	}
@@ -302,7 +304,7 @@ func (job *Job) Start() error {
 		job.isCompleted = true
 
 		// at this stage command completed and we no longer need cgroup and mounted filesystem and can release
-		cleanCGroup <- true
+		cleanCGroup <- 1
 		defer waitingCleanCGroupToCompleted()
 		unmount <- true
 		defer waitingUnMountToCompleted()
@@ -320,10 +322,10 @@ func (job *Job) Start() error {
 		if err = job.output.Close(); err != nil {
 			job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error closing output: %w\n", err))
 		}
-		log.Print("---> waiting process status goroutine is completed")
+		log.Print("---> process status goroutine is completed")
 	}()
 
-	log.Print("---> start functions completed")
+	log.Print("---> Start functions completed")
 	return nil
 }
 
