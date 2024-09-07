@@ -194,40 +194,28 @@ func (job *Job) Start() error {
 		//	UseCgroupFD: true,
 	}
 
-	cleanCGroup := make(chan bool)
-	waitingCleanCGroupToCompleted := func() {
-		_ = <-cleanCGroup // send notification channel cleaned up
-	}
-
-	go func() {
-		select {
-		case <-cleanCGroup:
-			{
-				// do not close the cgroup.procs file until after the process has exited
-				if err := ns.DeleteCGroup(job.getCGroupName()); err != nil {
-					log.Printf("error closing cgroup: %s\n", err)
-					job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error closing cgroup: %w\n", err))
-				}
-			}
-			cleanCGroup <- true
+	deleteCGroup := func() {
+		start := time.Now()
+		if err := ns.DeleteCGroup(job.getCGroupName()); err != nil {
+			log.Printf("error closing cgroup: %s\n", err)
+			job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error closing cgroup: %w\n", err))
 		}
-	}()
+		elapsed := time.Since(start)
+		log.Printf("deleteCGroup %s", elapsed)
+	}
 
 	err := ns.CreateCGroup(job.getCGroupName())
 	if err != nil {
-		cleanCGroup <- true
-		defer waitingCleanCGroupToCompleted()
+		deleteCGroup()
 		return fmt.Errorf("error creating cgroup: %w", err)
 	}
 
 	if err = ns.AddResourceControl(job.getCGroupName(), ns.CpuWeightFile, strconv.Itoa(int(job.config.CPU*100))); err != nil {
-		cleanCGroup <- true
-		defer waitingCleanCGroupToCompleted()
+		deleteCGroup()
 		return fmt.Errorf("could not add resources into controller:%s, %v", ns.CpuWeightFile, err)
 	}
 	if err = ns.AddResourceControl(job.getCGroupName(), ns.MemoryHighFile, strconv.FormatInt(job.config.MemBytes, 10)); err != nil {
-		cleanCGroup <- true
-		defer waitingCleanCGroupToCompleted()
+		deleteCGroup()
 		return fmt.Errorf("could not add resources into controller:%s, %v", ns.MemoryHighFile, err)
 	}
 	//if err = ns.AddResourceControl(job.getCGroupName(), ns.IoWeightFile, strconv.FormatInt(job.config.IOBytesPerSecond, 10)); err != nil {
@@ -238,39 +226,28 @@ func (job *Job) Start() error {
 
 	//provide the file descriptor to cmd.Run so that it can add the new PID to the control group
 	if err = ns.AddProcess(job.getCGroupName(), cmd); err != nil {
-		cleanCGroup <- true
-		defer waitingCleanCGroupToCompleted()
+		deleteCGroup()
 		return fmt.Errorf("error AddProcess /proc - %w\n", err)
 	}
 
-	unmount := make(chan bool)
-	waitingUnMountToCompleted := func() {
-		_ = <-unmount
-	}
-	go func() {
-		select {
-		case <-unmount:
-			{
-				if err := ns.UnmountProc(); err != nil {
-					job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error unmounting /proc - %w\n", err))
-				}
-				unmount <- true // unmouned
-			}
+	unmountProc := func() {
+		start := time.Now()
+		if err := ns.UnmountProc(); err != nil {
+			job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error unmounting /proc - %w\n", err))
 		}
-	}()
+		elapsed := time.Since(start)
+		log.Printf("unmountProc %s", elapsed)
+	}
 
 	if err = ns.MountProc(); err != nil {
-		cleanCGroup <- true
-		defer waitingUnMountToCompleted()
+		deleteCGroup()
 		return fmt.Errorf("Error mounting /proc - %w\n", err)
 	}
 
 	log.Printf("starting job:%s, cmd:%s", job, cmd.String())
 	if err = cmd.Start(); err != nil {
-		cleanCGroup <- true
-		defer waitingCleanCGroupToCompleted()
-		unmount <- true
-		defer waitingUnMountToCompleted()
+		deleteCGroup()
+		unmountProc()
 		return fmt.Errorf("error starting command: %w", err)
 	}
 	job.cmd = cmd
@@ -296,11 +273,8 @@ func (job *Job) Start() error {
 		job.isCompleted = true
 
 		// at this stage command completed and we no longer need cgroup and mounted filesystem and can release
-		cleanCGroup <- true
-		defer waitingCleanCGroupToCompleted()
-		unmount <- true
-		defer waitingUnMountToCompleted()
-
+		deleteCGroup()
+		unmountProc()
 		if err != nil {
 			job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error running command: %w\n", err))
 		}
