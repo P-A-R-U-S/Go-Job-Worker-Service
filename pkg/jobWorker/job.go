@@ -256,12 +256,13 @@ func (job *Job) Start() error {
 		// This prevents concurrency issues when a user calls Start(), the command quickly exits (updating the
 		// process state), and the user invokes Status().
 		processState, err := job.cmd.Process.Wait()
-		job.processState = processState
-		job.exitCode = processState.ExitCode()
-		job.exitReason = job.cmd.Err
 
 		job.mutex.Lock()
 		defer job.mutex.Unlock()
+
+		job.processState = processState
+		job.exitCode = processState.ExitCode()
+		job.exitReason = job.cmd.Err
 
 		// at this stage job in completed (successfully or not we can detect from checking job.exitReason and isTerminated )
 		job.isCompleted = true
