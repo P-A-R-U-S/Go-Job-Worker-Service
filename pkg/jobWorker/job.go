@@ -51,14 +51,11 @@ type JobStatus struct {
 
 // JobConfig represent job configuration settings (all fields are required)
 type JobConfig struct {
-	// RootPhysicalDevice is the major and minor number of the root physical device to apply IOBytesPerSecond limit to.
-	RootPhysicalDevice string
 	// CPU is the number of CPU cores to limit the job to such as 0.5 for half a CPU core.
 	CPU float64
 	// MemBytes is the number of bytes to limit the job to use, such as 1_000_000_000 for 1 GB.
 	MemBytes int64
 	// IOBytesPerSecond is the number of bytes per second to limit the job to read/write on the
-	//					provided RootPhysicalDevice, such as 100_000_000 for 100 MB/s.
 	IOBytesPerSecond int64
 	// Command is the command to run.
 	Command string
