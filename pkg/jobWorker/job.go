@@ -195,13 +195,10 @@ func (job *Job) Start() error {
 	}
 
 	deleteCGroup := func() {
-		start := time.Now()
 		if err := ns.DeleteCGroup(job.getCGroupName()); err != nil {
 			log.Printf("error closing cgroup: %s\n", err)
 			job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error closing cgroup: %w\n", err))
 		}
-		elapsed := time.Since(start)
-		log.Printf("deleteCGroup %s", elapsed)
 	}
 
 	err := ns.CreateCGroup(job.getCGroupName())
@@ -231,12 +228,9 @@ func (job *Job) Start() error {
 	}
 
 	unmountProc := func() {
-		start := time.Now()
 		if err := ns.UnmountProc(); err != nil {
 			job.exitReason = errors.Join(job.exitReason, fmt.Errorf("error unmounting /proc - %w\n", err))
 		}
-		elapsed := time.Since(start)
-		log.Printf("unmountProc %s", elapsed)
 	}
 
 	if err = ns.MountProc(); err != nil {
