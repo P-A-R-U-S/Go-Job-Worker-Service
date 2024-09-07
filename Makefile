@@ -15,8 +15,8 @@ run_build:
 	gofmt -w server/*.go
 	gofmt -w build cli/*.go
 
-	go build -o server -race server/*.go
-	go build -o cli -race cli/main.go
+	go build -o ./jwsrv -race server/*.go
+	go build -o ./jwcli -race cli/*.go
 
 run_test_cgroup:
 	go mod tidy
@@ -44,33 +44,17 @@ run_server:
 	sudo ./jwsrv -port 8080
 
 run_client_test:
-	#GOOS=linux GOARCH=amd64 	# linux
-	#GOOS=darwin GOARCH=arm64 	# Mac OS (Apple Silicon)
-	#GOOS=windows GOARCH=amd64 	# Windows
-	go build -o ./jwcli cli/main.go
+	./jwcli --host 'localhost:8080' --ca-cert './certs/ca-cert.pem' --client-cert './certs/client-1-cert.pem' --client-key './certs/client-1-key.pem' start --cpu 0.5 --memory 1000000000 --io 10000000 --c 'echo' 'hello world'
+	#--------------------------------------------------------------------------------------------
+	#"assign job id into env variable = e.g. export JOB_ID=232405c7-b194-4a2f-a7df-d9fc96ba6cd3"
+	#"and run 'make run_client_test2'"
+    #--------------------------------------------------------------------------------------------
 
-	# run simple job
-	./jwcli --host 'localhost:8080'\
-			--ca-cert './certs/ca-cert.pem' \
-			--client-cert './certs/client-1-cert.pem' \
-			--client-key './certs/client-1-key.pem' \
-			start \
-			--cpu 0.5 \
-			--memory 1000000000 \
-			--io 10000000 \
-			--command 'echo' 'hello world'
+run_client_test2:
+	./jwcli --host 'localhost:8080' --ca-cert './certs/ca-cert.pem' --client-cert './certs/client-1-cert.pem' --client-key './certs/client-1-key.pem' status --id $(JOB_ID)
 
-	# run short lived job
-	#./jwcli --host 'localhost:8080'\
-# 		--ca-cert 'certs/ca-cert.pem' \
-# 		--client-cert 'certs/client-1-cert.pem' \
-# 		--client-key 'certs/client-1-key.pem' \
-# 		start \
-# 		--cpu 0.5 \
-# 		--memory 1000000000 \
-# 		--io 10000000 \
-# 		--command '/bin/bash' '-c' 'while :; do echo thinking; sleep 1; done'
+	./jwcli --host 'localhost:8080' --ca-cert './certs/ca-cert.pem' --client-cert './certs/client-1-cert.pem' --client-key './certs/client-1-key.pem' stream --id $(JOB_ID)
 
- 	# sleep for 5 second to let job generate some output
+	./jwcli --host 'localhost:8080' --ca-cert './certs/ca-cert.pem' --client-cert './certs/client-1-cert.pem' --client-key './certs/client-1-key.pem' stop --id $(JOB_ID)
 
 

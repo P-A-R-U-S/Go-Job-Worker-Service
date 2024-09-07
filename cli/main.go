@@ -61,13 +61,6 @@ func main() {
 				Required: true,
 			},
 		},
-		Action: func(cCtx *cli.Context) error {
-			fmt.Printf("connecting to service %s\n", cCtx.String(commandFlagHost))
-			fmt.Printf("CA Certificate: %s\n", cCtx.String(commandFlagCertificate))
-			fmt.Printf("Client Certificate: %s\n", cCtx.String(commandFlagClientCertificate))
-			fmt.Printf("Clint Private key: %s\n", cCtx.String(commandFlagClientPrivateKey))
-			return nil
-		},
 		Commands: []*cli.Command{
 			{
 				Name:  "start",
@@ -111,12 +104,6 @@ func main() {
 					memory := cCtx.Int64(commandFlagMemory)
 					ioBytesPerSecond := cCtx.Int64(commandFlagIoBytesPerSecond)
 
-					//fmt.Printf("command %s\n", command)
-					//fmt.Printf("args: %s\n", args)
-					//fmt.Printf("cpu: %f\n", cpu)
-					//fmt.Printf("memory: %d\n", memory)
-					//fmt.Printf("ioBytesPerSecond: %d\n", ioBytesPerSecond)
-
 					return start(client, command, args, cpu, memory, ioBytesPerSecond)
 				},
 			},
@@ -159,7 +146,9 @@ func main() {
 					}
 
 					jobId := cCtx.String(commandFlagId)
-					fmt.Printf("job id: %s\n", jobId)
+					fmt.Println("================================")
+					fmt.Printf("streaming job: %s output\n", jobId)
+					fmt.Println("================================")
 
 					return stream(client, jobId)
 				},
@@ -181,7 +170,7 @@ func main() {
 					}
 
 					jobId := cCtx.String(commandFlagId)
-					fmt.Printf("job id: %s\n", jobId)
+					fmt.Printf("stopping job id: %s\n", jobId)
 
 					return stop(client, jobId)
 				},
@@ -209,10 +198,10 @@ func start(client proto.JobWorkerClient, command string, args []string, cpu floa
 
 	response, err := client.Start(ctx, request)
 	if err != nil {
-		return fmt.Errorf("error creating stream: %v", err)
+		return fmt.Errorf("error starting job: %v", err)
 	}
 
-	log.Printf("Jod:%s created.", response.Id)
+	log.Print(response.Id)
 	return nil
 }
 
@@ -226,7 +215,7 @@ func status(client proto.JobWorkerClient, jobId string) error {
 		return fmt.Errorf("failed to get status: %w", err)
 	}
 
-	fmt.Printf("Jod:%s has status: %s. ExitCode:%d, ExitReason:%s\n",
+	fmt.Printf("Jod:%s has status: %s. exitCode:%d, exitReason:%s\n",
 		jobId,
 		response.GetStatus(),
 		response.GetExitCode(),
@@ -289,7 +278,7 @@ func stop(client proto.JobWorkerClient, jobId string) error {
 		return fmt.Errorf("failed to get status: %w", err)
 	}
 
-	fmt.Printf("Jod:%s has status: %s. ExitCode:%d, ExitReason:%s\n",
+	fmt.Printf("Jod:%s has status: %s, exitCode:%d, exitReason:%s\n",
 		jobId,
 		response.GetStatus(),
 		response.GetExitCode(),
@@ -303,11 +292,6 @@ func createClient(cCtx *cli.Context) (proto.JobWorkerClient, error) {
 	caCert := cCtx.String(commandFlagCertificate)
 	clientCert := cCtx.String(commandFlagClientCertificate)
 	clientKey := cCtx.String(commandFlagClientPrivateKey)
-
-	fmt.Printf("connecting to service %s\n", host)
-	fmt.Printf("CA Certificate: %s\n", caCert)
-	fmt.Printf("Client Certificate: %s\n", clientCert)
-	fmt.Printf("Clint Private key: %s\n", clientKey)
 
 	return getClient(host, caCert, clientCert, clientKey)
 }
