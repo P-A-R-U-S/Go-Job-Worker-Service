@@ -13,7 +13,7 @@ run_build:
 	gofmt -w pkg/tls/tls.go
 	gofmt -w pkg/proto/jobWorker.pb.go,pkg/proto/jobWorker_grpc.pb.go
 	gofmt -w server/*.go
-	gofmt -w build cli/*.go
+	gofmt -w cli/*.go
 
 	go build -o ./jwsrv -race server/*.go
 	go build -o ./jwcli -race cli/*.go
@@ -37,10 +37,6 @@ run_test_job:
 	sudo go test -v -race pkg/jobWorker/*.go -run "^Test_Job"
 
 run_server:
-	#GOOS=linux GOARCH=amd64 	# linux
-	#GOOS=darwin GOARCH=arm64 	# Mac OS (Apple Silicon)
-	#GOOS=windows GOARCH=amd64 	# Windows
-	go build -o ./jwsrv server/*.go
 	sudo ./jwsrv -port 8080
 
 run_client_test:
