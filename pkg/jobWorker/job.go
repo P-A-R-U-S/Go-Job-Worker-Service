@@ -200,7 +200,6 @@ func (job *Job) Start() error {
 	}
 
 	go func() {
-		time.Sleep(100 * time.Millisecond)
 		select {
 		case <-cleanCGroup:
 			{
@@ -249,7 +248,6 @@ func (job *Job) Start() error {
 		_ = <-unmount
 	}
 	go func() {
-		time.Sleep(100 * time.Millisecond)
 		select {
 		case <-unmount:
 			{
