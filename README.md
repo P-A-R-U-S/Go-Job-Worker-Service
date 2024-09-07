@@ -24,36 +24,44 @@ This isolation includes:
     $ go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
     $ go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
     ```
-   
-    > [!NOTE]
-    > Repo already contains pre-generate certificate, but you can generate your certificate 
-    > 
-   > **make generate_certificate** 
+
+    > Repo already contains pre-generate certificate, but you can generate your certificate
+    > **make generate_certificate** 
 
 4. Run server
     ```makefile
-      make generate_grpc_code
       make run_server
      ```
-    >[!NOTE] 
-    > Server, using following address:port _0.0.0.0:8080_ 
-    > (or _localhost:8080_) by default.
+    > Server, using following address:port _0.0.0.0:8080_ (or _localhost:8080_) by default.
 
 5. Run Client
+    
     ```makefile
       make run_client_test
      ```
+     following command below run simple command. For proper testing you can run command in following order
+* **start command** - `./jwcli --host 'localhost:8080' --ca-cert './certs/ca-cert.pem' --client-cert './certs/client-1-cert.pem' --client-key './certs/client-1-key.pem' start --cpu 0.5 --memory 1000000000 --io 10000000 --c 'echo' 'hello world'`
+
+
+* **get status** - `./jwcli --host 'localhost:8080' --ca-cert './certs/ca-cert.pem' --client-cert './certs/client-1-cert.pem' --client-key './certs/client-1-key.pem' status --id <JOB ID>`
+
+
+* **get command output** -`./jwcli --host 'localhost:8080' --ca-cert './certs/ca-cert.pem' --client-cert './certs/client-1-cert.pem' --client-key './certs/client-1-key.pem' stream --id <JOB ID>`
+
+
+* **stop command execution** - `./jwcli --host 'localhost:8080' --ca-cert './certs/ca-cert.pem' --client-cert './certs/client-1-cert.pem' --client-key './certs/client-1-key.pem' stop --id $(JOB_ID)`
+
 
 ### Library usage
-An example to run a job simple job: echo "Hello, World!":
+An example to run a simple job: _echo "Hello, World!"_:
 
 ```go
 package main
 
 import (
-	"errors"
 	"fmt"
 	"github.com/P-A-R-U-S/Go-Job-Worker-Service/pkg/jobWorker"
+	"os"
 )
 
 func main() {
@@ -68,16 +76,23 @@ func main() {
 	}
 
 	newJob := jobWorker.NewJob(&config)
-	
+
+	// start new job
+	if err = newJob.Start(); err != nil {
+		fmt.Printf("error starting job: %w", err)
+		os.Exit(-1)
+	}
+
 	// get status
 	jobStatus := newJob.job.Status()
-	fmt.Println("status:%s", jobStatus.State)
-	
+	fmt.Printf("status:%s", jobStatus.State)
+
 	// stop job
 	if err := newJob.job.Stop(); err != nil {
-		fmt.Errorf("error stopping job: %w", err)
+		log.Errorf("error stopping job: %w", err)
+		os.Exit(-1)
 	}
-	fmt.Println("Status:%s", jobStatus.State)
+	fmt.Printf("Status:%s", jobStatus.State)
 
 	// get status
 	jobStatus = newJob.job.Status()
