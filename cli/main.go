@@ -338,6 +338,7 @@ func loadTLSCredentials(pemClientCACertificate, pemClientCertificate, pemClientP
 	config := &tls.Config{
 		Certificates: []tls.Certificate{clientCert},
 		RootCAs:      certPool,
+		MinVersion:   tls.VersionTLS13,
 	}
 
 	return credentials.NewTLS(config), nil
