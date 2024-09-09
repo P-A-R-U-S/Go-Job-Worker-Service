@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/P-A-R-U-S/Go-Job-Worker-Service/pkg/proto"
+	"google.golang.org/grpc"
 	"io"
 	"log"
 	"os"
@@ -18,10 +19,10 @@ var (
 	clientPrivateKey = "%s/certs/client-1-key.pem"
 )
 
-func createTestClient() (proto.JobWorkerClient, error) {
+func createTestClient() (proto.JobWorkerClient, *grpc.ClientConn, error) {
 	pwd, err := os.Getwd()
 	if err != nil {
-		return nil, fmt.Errorf("cannot retrive rooted path name")
+		return nil, nil, fmt.Errorf("cannot retrive rooted path name")
 	}
 
 	pwd = strings.Replace(pwd, "/cli", "", -1)
@@ -57,14 +58,16 @@ func extractJobID(out string) string {
 func Test_Client_Should_start_simple_job_and_return_correct_status(t *testing.T) {
 	var err error
 	var client proto.JobWorkerClient
+	var conn *grpc.ClientConn
 	var stdOut string
 
 	t.Parallel()
 
-	client, err = createTestClient()
+	client, conn, err = createTestClient()
 	if err != nil {
 		t.Error(ErrNoAbleToCreateClient)
 	}
+	defer conn.Close()
 
 	command := "echo"
 	args := []string{"hello", "world"}

@@ -25,6 +25,7 @@ type userJob struct {
 type JobWorkerServer struct {
 	userJobs map[string]userJob
 	mutex    sync.Mutex
+	rwmutex  sync.RWMutex
 }
 
 func NewJobWorkerServer() *JobWorkerServer {
@@ -35,13 +36,13 @@ func NewJobWorkerServer() *JobWorkerServer {
 
 // Start creates a new job for the user and starts the job.
 func (s *JobWorkerServer) Start(ctx context.Context, request *proto.JobCreateRequest) (*proto.JobResponse, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	user, err := tls.GetUserFromContext(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user from certificate: %w", err)
 	}
+
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
 
 	config := jobWorker.JobConfig{
 		CPU:              request.CPU,
@@ -66,9 +67,6 @@ func (s *JobWorkerServer) Start(ctx context.Context, request *proto.JobCreateReq
 }
 
 func (s *JobWorkerServer) Status(ctx context.Context, request *proto.JobRequest) (*proto.JobStatusResponse, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	jobID := request.GetId()
 
 	job, ok := s.userJobs[jobID]
@@ -87,6 +85,10 @@ func (s *JobWorkerServer) Status(ctx context.Context, request *proto.JobRequest)
 		return nil, ErrNotAuthorized
 	}
 
+	// we don't want to lock until find a job
+	s.rwmutex.RLock()
+	defer s.rwmutex.RUnlock()
+
 	jobStatus := job.job.Status()
 
 	return &proto.JobStatusResponse{
@@ -97,9 +99,6 @@ func (s *JobWorkerServer) Status(ctx context.Context, request *proto.JobRequest)
 }
 
 func (s *JobWorkerServer) Stream(request *proto.JobRequest, stream grpc.ServerStreamingServer[proto.OutputResponse]) error {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	jobID := request.GetId()
 
 	job, ok := s.userJobs[jobID]
@@ -117,6 +116,10 @@ func (s *JobWorkerServer) Stream(request *proto.JobRequest, stream grpc.ServerSt
 		// 		 better to returning Not Found instead of Permission Denied to hide job existence
 		return ErrNotAuthorized
 	}
+
+	// we don't want to lock until find a job
+	s.rwmutex.RLock()
+	defer s.rwmutex.RUnlock()
 
 	jobOutput := job.job.Stream()
 	buffer := make([]byte, 1024)
@@ -143,9 +146,6 @@ func (s *JobWorkerServer) Stream(request *proto.JobRequest, stream grpc.ServerSt
 }
 
 func (s *JobWorkerServer) Stop(ctx context.Context, request *proto.JobRequest) (*proto.JobStatusResponse, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	jobID := request.GetId()
 
 	job, ok := s.userJobs[jobID]
@@ -163,6 +163,10 @@ func (s *JobWorkerServer) Stop(ctx context.Context, request *proto.JobRequest) (
 		// 		 better to returning Not Found instead of Permission Denied to hide job existence
 		return nil, ErrNotAuthorized
 	}
+
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	if err := job.job.Stop(); err != nil {
 		return nil, fmt.Errorf("error stopping job: %w", err)
 	}
