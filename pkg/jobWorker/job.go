@@ -262,7 +262,6 @@ func (job *Job) Start() error {
 
 		job.processState = processState
 		job.exitCode = processState.ExitCode()
-		job.exitReason = job.cmd.Err
 
 		// at this stage job in completed (successfully or not we can detect from checking job.exitReason and isTerminated )
 		job.isCompleted = true
