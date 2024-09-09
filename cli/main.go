@@ -201,7 +201,7 @@ func start(client proto.JobWorkerClient, command string, args []string, cpu floa
 		return fmt.Errorf("error starting job: %v", err)
 	}
 
-	fmt.Print(response.Id)
+	fmt.Println("started new job:", response.Id)
 
 	return nil
 }

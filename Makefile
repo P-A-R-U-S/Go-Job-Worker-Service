@@ -11,7 +11,7 @@ generate_grpc_code:
 run_build:
 	go mod tidy
 	gofmt -w pkg/tls/tls.go
-	gofmt -w pkg/proto/jobWorker.pb.go,pkg/proto/jobWorker_grpc.pb.go
+	gofmt -w pkg/proto/jobWorker.pb.go pkg/proto/jobWorker_grpc.pb.go
 	gofmt -w server/*.go
 	gofmt -w cli/*.go
 
