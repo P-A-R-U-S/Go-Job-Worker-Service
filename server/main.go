@@ -23,7 +23,6 @@ func main() {
 
 	pwd, err := os.Getwd()
 	if err != nil {
-		os.Exit(1)
 		log.Fatalf("cannot execute PWD: %s", ErrGetingPWD)
 	}
 

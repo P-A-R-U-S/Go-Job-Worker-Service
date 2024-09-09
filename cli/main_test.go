@@ -21,7 +21,6 @@ var (
 func createTestClient() (proto.JobWorkerClient, error) {
 	pwd, err := os.Getwd()
 	if err != nil {
-		os.Exit(1)
 		return nil, fmt.Errorf("cannot retrive rooted path name")
 	}
 
@@ -55,7 +54,7 @@ func extractJobID(out string) string {
 // positive case
 
 // Use Case #1: Starting simple job, check job status and let the job complete.
-func Test_Should_start_simple_job_and_return_correct_status(t *testing.T) {
+func Test_Client_Should_start_simple_job_and_return_correct_status(t *testing.T) {
 	var err error
 	var client proto.JobWorkerClient
 	var stdOut string
@@ -68,7 +67,7 @@ func Test_Should_start_simple_job_and_return_correct_status(t *testing.T) {
 	}
 
 	command := "echo"
-	args := []string{"hello"}
+	args := []string{"hello", "world"}
 	cpu := 1.0
 	memory := int64(1000000000)
 	io := int64(10000000)

@@ -36,6 +36,11 @@ run_test_job:
 	# "to create cgroup we need root permission"
 	sudo go test -v -race pkg/jobWorker/*.go -run "^Test_Job"
 
+run_test_client:
+	go mod tidy
+	gofmt -w cli/*.go
+	sudo go test -v -race cli/*.go -run "^Test_Client"
+
 run_server:
 	sudo ./jwsrv -port 8080
 
