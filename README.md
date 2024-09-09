@@ -27,8 +27,13 @@ This isolation includes:
 
     > Repo already contains pre-generate certificate, but you can generate your certificate
     > **make generate_certificate** 
-
-4. Run server
+   
+4. Build server and client:
+    ```makefile
+    make run_build
+    ```
+   
+5. Run server
     ```makefile
       make run_server
      ```
@@ -40,6 +45,9 @@ This isolation includes:
       make run_client_test
      ```
      following command below run simple command. For proper testing you can run command in following order
+
+    _**Note:** replace JOB_ID with actual UUID_
+
 * **start command** - `./jwcli --host 'localhost:8080' --ca-cert './certs/ca-cert.pem' --client-cert './certs/client-1-cert.pem' --client-key './certs/client-1-key.pem' start --cpu 0.5 --memory 1000000000 --io 10000000 --c 'echo' 'hello world'`
 
 
@@ -49,7 +57,7 @@ This isolation includes:
 * **get command output** -`./jwcli --host 'localhost:8080' --ca-cert './certs/ca-cert.pem' --client-cert './certs/client-1-cert.pem' --client-key './certs/client-1-key.pem' stream --id <JOB ID>`
 
 
-* **stop command execution** - `./jwcli --host 'localhost:8080' --ca-cert './certs/ca-cert.pem' --client-cert './certs/client-1-cert.pem' --client-key './certs/client-1-key.pem' stop --id $(JOB_ID)`
+* **stop command execution** - `./jwcli --host 'localhost:8080' --ca-cert './certs/ca-cert.pem' --client-cert './certs/client-1-cert.pem' --client-key './certs/client-1-key.pem' stop --id $<JOB ID>`
 
 
 ### Library usage
