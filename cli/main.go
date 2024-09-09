@@ -93,10 +93,11 @@ func main() {
 					},
 				},
 				Action: func(cCtx *cli.Context) error {
-					client, err := createClient(cCtx)
+					client, conn, err := createClient(cCtx)
 					if err != nil {
 						return ErrNoAbleToCreateClient
 					}
+					defer conn.Close()
 
 					command := cCtx.String(commandFlagCommand)
 					args := cCtx.Args().Slice()
@@ -118,10 +119,11 @@ func main() {
 					},
 				},
 				Action: func(cCtx *cli.Context) error {
-					client, err := createClient(cCtx)
+					client, conn, err := createClient(cCtx)
 					if err != nil {
 						return ErrNoAbleToCreateClient
 					}
+					defer conn.Close()
 
 					jobId := cCtx.String(commandFlagId)
 					fmt.Printf("job id: %s\n", jobId)
@@ -140,10 +142,11 @@ func main() {
 					},
 				},
 				Action: func(cCtx *cli.Context) error {
-					client, err := createClient(cCtx)
+					client, conn, err := createClient(cCtx)
 					if err != nil {
 						return ErrNoAbleToCreateClient
 					}
+					defer conn.Close()
 
 					jobId := cCtx.String(commandFlagId)
 					fmt.Println("================================")
@@ -164,10 +167,11 @@ func main() {
 					},
 				},
 				Action: func(cCtx *cli.Context) error {
-					client, err := createClient(cCtx)
+					client, conn, err := createClient(cCtx)
 					if err != nil {
 						return ErrNoAbleToCreateClient
 					}
+					defer conn.Close()
 
 					jobId := cCtx.String(commandFlagId)
 					fmt.Printf("stopping job id: %s\n", jobId)
@@ -197,6 +201,7 @@ func start(client proto.JobWorkerClient, command string, args []string, cpu floa
 	}
 
 	response, err := client.Start(ctx, request)
+
 	if err != nil {
 		return fmt.Errorf("error starting job: %v", err)
 	}
@@ -275,6 +280,7 @@ func stop(client proto.JobWorkerClient, jobId string) error {
 	}
 
 	response, err := client.Status(context.Background(), job)
+
 	if err != nil {
 		return fmt.Errorf("failed to get status: %w", err)
 	}
@@ -288,7 +294,7 @@ func stop(client proto.JobWorkerClient, jobId string) error {
 	return nil
 }
 
-func createClient(cCtx *cli.Context) (proto.JobWorkerClient, error) {
+func createClient(cCtx *cli.Context) (proto.JobWorkerClient, *grpc.ClientConn, error) {
 	host := cCtx.String(commandFlagHost)
 	caCert := cCtx.String(commandFlagCertificate)
 	clientCert := cCtx.String(commandFlagClientCertificate)
@@ -297,7 +303,7 @@ func createClient(cCtx *cli.Context) (proto.JobWorkerClient, error) {
 	return getClient(host, caCert, clientCert, clientKey)
 }
 
-func getClient(host, caCertPath, clientCertPath, clientKeyPath string) (proto.JobWorkerClient, error) {
+func getClient(host, caCertPath, clientCertPath, clientKeyPath string) (proto.JobWorkerClient, *grpc.ClientConn, error) {
 	tlsCredentials, err := loadTLSCredentials(caCertPath, clientCertPath, clientKeyPath)
 	if err != nil {
 		log.Fatalf("failed to load TLS credentials: %v", err)
@@ -305,15 +311,13 @@ func getClient(host, caCertPath, clientCertPath, clientKeyPath string) (proto.Jo
 
 	clientConnection, err := grpc.NewClient(host, grpc.WithTransportCredentials(tlsCredentials))
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect: %w", err)
+		return nil, nil, fmt.Errorf("failed to connect: %w", err)
 	}
-
 	client := proto.NewJobWorkerClient(clientConnection)
 	if client == nil {
-		return nil, fmt.Errorf("failed to create JobWorkerClient")
+		return nil, nil, fmt.Errorf("failed to create JobWorkerClient")
 	}
-
-	return client, nil
+	return client, clientConnection, nil
 }
 
 func loadTLSCredentials(pemClientCACertificate, pemClientCertificate, pemClientPrivateKey string) (credentials.TransportCredentials, error) {
