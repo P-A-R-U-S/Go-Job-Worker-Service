@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	ErrGetingPWD = errors.New("no able to retrieve working directory path")
+	ErrGettingPWD = errors.New("no able to retrieve working directory path")
 )
 
 func main() {
@@ -23,7 +23,7 @@ func main() {
 
 	pwd, err := os.Getwd()
 	if err != nil {
-		log.Fatalf("cannot execute PWD: %s", ErrGetingPWD)
+		log.Fatalf("cannot execute PWD: %s", ErrGettingPWD)
 	}
 
 	// TODO: Hardcode for complete assigment, but in production should be stored on secure storage (Database, AWS Secrets or etc)
