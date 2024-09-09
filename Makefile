@@ -45,16 +45,11 @@ run_server:
 
 run_client_test:
 	./jwcli --host 'localhost:8080' --ca-cert './certs/ca-cert.pem' --client-cert './certs/client-1-cert.pem' --client-key './certs/client-1-key.pem' start --cpu 0.5 --memory 1000000000 --io 10000000 --c 'echo' 'hello world'
-	#--------------------------------------------------------------------------------------------
-	#"assign job id into env variable = e.g. export JOB_ID=232405c7-b194-4a2f-a7df-d9fc96ba6cd3"
-	#"and run 'make run_client_test2'"
-    #--------------------------------------------------------------------------------------------
 
-run_client_test2:
-	./jwcli --host 'localhost:8080' --ca-cert './certs/ca-cert.pem' --client-cert './certs/client-1-cert.pem' --client-key './certs/client-1-key.pem' status --id $(JOB_ID)
+	#./jwcli --host 'localhost:8080' --ca-cert './certs/ca-cert.pem' --client-cert './certs/client-1-cert.pem' --client-key './certs/client-1-key.pem' status --id $(JOB_ID)
 
-	./jwcli --host 'localhost:8080' --ca-cert './certs/ca-cert.pem' --client-cert './certs/client-1-cert.pem' --client-key './certs/client-1-key.pem' stream --id $(JOB_ID)
+	#./jwcli --host 'localhost:8080' --ca-cert './certs/ca-cert.pem' --client-cert './certs/client-1-cert.pem' --client-key './certs/client-1-key.pem' stream --id $(JOB_ID)
 
-	./jwcli --host 'localhost:8080' --ca-cert './certs/ca-cert.pem' --client-cert './certs/client-1-cert.pem' --client-key './certs/client-1-key.pem' stop --id $(JOB_ID)
+	#./jwcli --host 'localhost:8080' --ca-cert './certs/ca-cert.pem' --client-cert './certs/client-1-cert.pem' --client-key './certs/client-1-key.pem' stop --id $(JOB_ID)
 
 
