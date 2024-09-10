@@ -24,8 +24,7 @@ type userJob struct {
 
 type JobWorkerServer struct {
 	userJobs map[string]userJob
-	mutex    sync.Mutex
-	rwmutex  sync.RWMutex
+	mutex    sync.RWMutex
 }
 
 func NewJobWorkerServer() *JobWorkerServer {
@@ -67,8 +66,8 @@ func (s *JobWorkerServer) Start(ctx context.Context, request *proto.JobCreateReq
 }
 
 func (s *JobWorkerServer) Status(ctx context.Context, request *proto.JobRequest) (*proto.JobStatusResponse, error) {
-	s.rwmutex.RLock()
-	defer s.rwmutex.RUnlock()
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 
 	jobID := request.GetId()
 
@@ -98,8 +97,8 @@ func (s *JobWorkerServer) Status(ctx context.Context, request *proto.JobRequest)
 }
 
 func (s *JobWorkerServer) Stream(request *proto.JobRequest, stream grpc.ServerStreamingServer[proto.OutputResponse]) error {
-	s.rwmutex.RLock()
-	defer s.rwmutex.RUnlock()
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
 
 	jobID := request.GetId()
 
