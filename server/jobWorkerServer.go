@@ -144,6 +144,9 @@ func (s *JobWorkerServer) Stream(request *proto.JobRequest, stream grpc.ServerSt
 }
 
 func (s *JobWorkerServer) Stop(ctx context.Context, request *proto.JobRequest) (*proto.JobStatusResponse, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	jobID := request.GetId()
 
 	job, ok := s.userJobs[jobID]
@@ -161,9 +164,6 @@ func (s *JobWorkerServer) Stop(ctx context.Context, request *proto.JobRequest) (
 		// 		 better to returning Not Found instead of Permission Denied to hide job existence
 		return nil, ErrNotAuthorized
 	}
-
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
 
 	if err := job.job.Stop(); err != nil {
 		return nil, fmt.Errorf("error stopping job: %w", err)
