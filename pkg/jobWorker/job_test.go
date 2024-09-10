@@ -1,9 +1,12 @@
 package jobWorker
 
 import (
+	"fmt"
 	"io"
 	"log"
+	"math/rand"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -231,6 +234,80 @@ func Test_Job_Stopping_Long_Lived_Command(t *testing.T) {
 		// TODO: In Ubuntu exit reason signal:terminated, but can be different in other linux distro's. Need to research.
 		t.Errorf("expected job exit reason not to be empty, because command had been terminated")
 	}
+}
+
+func Test_Job_Load_10000_Read_and_Write(t *testing.T) {
+	config := JobConfig{
+		Command:          "/bin/bash",
+		Arguments:        []string{"-c", "while :; do  echo thinking; sleep 1; done"},
+		CPU:              0.5,           // half a CPU core
+		IOBytesPerSecond: 100_000_000,   // 100 MB/s
+		MemBytes:         1_000_000_000, // 1 GB
+	}
+
+	jobs := map[int]*Job{}
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+
+	// create a lof of jobs
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 10000; i++ {
+			testJob := NewJob(&config)
+
+			// start the job
+			err := testJob.Start()
+			if err != nil {
+				t.Fatalf("error starting job: %v", err)
+			}
+
+			jobs[i] = testJob
+		}
+	}()
+
+	time.Sleep(100 * time.Microsecond)
+
+	// read from jobs
+	go func() {
+		defer wg.Done()
+		for len(jobs) > 0 {
+			jobId := rand.Intn(len(jobs))
+			if job, ok := jobs[jobId]; ok {
+				if !job.isCompleted {
+					delete(jobs, jobId)
+				}
+				if buf, err := io.ReadAll(job.Stream()); err != nil {
+					log.Printf("error reading job: %v", err)
+				} else {
+					fmt.Println("Output:", jobId, string(buf))
+				}
+
+			}
+		}
+	}()
+
+	// stop from jobs
+	go func() {
+		defer wg.Done()
+		for len(jobs) > 0 {
+			jobId := rand.Intn(len(jobs))
+			if job, ok := jobs[jobId]; ok && !job.isCompleted {
+				err := job.Stop()
+				if err != nil {
+					log.Printf("error stopping job: %v", err)
+					continue
+				} else {
+					fmt.Println("Stopped job", jobId)
+				}
+
+			}
+
+			time.Sleep(10 * time.Millisecond)
+		}
+	}()
+
 }
 
 func Test_Job_IOLimits(t *testing.T) {

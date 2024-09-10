@@ -67,6 +67,9 @@ func (s *JobWorkerServer) Start(ctx context.Context, request *proto.JobCreateReq
 }
 
 func (s *JobWorkerServer) Status(ctx context.Context, request *proto.JobRequest) (*proto.JobStatusResponse, error) {
+	s.rwmutex.RLock()
+	defer s.rwmutex.RUnlock()
+
 	jobID := request.GetId()
 
 	job, ok := s.userJobs[jobID]
@@ -85,10 +88,6 @@ func (s *JobWorkerServer) Status(ctx context.Context, request *proto.JobRequest)
 		return nil, ErrNotAuthorized
 	}
 
-	// we don't want to lock until find a job
-	s.rwmutex.RLock()
-	defer s.rwmutex.RUnlock()
-
 	jobStatus := job.job.Status()
 
 	return &proto.JobStatusResponse{
@@ -99,6 +98,9 @@ func (s *JobWorkerServer) Status(ctx context.Context, request *proto.JobRequest)
 }
 
 func (s *JobWorkerServer) Stream(request *proto.JobRequest, stream grpc.ServerStreamingServer[proto.OutputResponse]) error {
+	s.rwmutex.RLock()
+	defer s.rwmutex.RUnlock()
+
 	jobID := request.GetId()
 
 	job, ok := s.userJobs[jobID]
@@ -116,10 +118,6 @@ func (s *JobWorkerServer) Stream(request *proto.JobRequest, stream grpc.ServerSt
 		// 		 better to returning Not Found instead of Permission Denied to hide job existence
 		return ErrNotAuthorized
 	}
-
-	// we don't want to lock until find a job
-	s.rwmutex.RLock()
-	defer s.rwmutex.RUnlock()
 
 	jobOutput := job.job.Stream()
 	buffer := make([]byte, 1024)
