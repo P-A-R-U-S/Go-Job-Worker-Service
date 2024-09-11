@@ -1,0 +1,49 @@
+syntax="proto3";
+
+option go_package = "github.com/P-A-R-U-S/Go-Job-Worker-Service/proto";
+
+package proto;
+
+service JobWorker {
+  rpc Start(JobCreateRequest) returns (JobResponse) {}
+  rpc Status(JobRequest) returns (JobStatusResponse) {}
+  rpc Stream(JobRequest) returns (stream OutputResponse) {}
+  rpc Stop(JobRequest) returns (JobStatusResponse) {}
+}
+
+// requests
+message JobCreateRequest {
+  double  CPU = 1;
+  int64   MemBytes = 2;
+  int64   IoBytesPerSecond = 3;
+  string  Command = 4;
+  repeated string Args = 5;
+}
+
+message JobRequest {
+  string  Id = 1;
+}
+
+// responses
+message JobResponse {
+  string  Id = 1;
+}
+
+enum Status {
+  UNSPECIFIED = 0;
+  NOT_STARTED = 1;
+  RUNNING     = 2;
+  STOPPED     = 3;
+  TERMINATED  = 4;
+  COMPLETED   = 5;
+}
+
+message JobStatusResponse {
+  Status  status = 1;
+  int32   exitCode = 2;
+  string  exitReason = 3;
+}
+
+message OutputResponse {
+  bytes   content = 1;
+}

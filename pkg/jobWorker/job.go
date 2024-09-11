@@ -128,7 +128,7 @@ func NewJob(config *JobConfig) *Job {
 		output:   output,
 		exitCode: -1,
 	}
-	log.Printf("creted job:%s", job)
+	log.Printf("create  %s", job)
 	return job
 }
 
